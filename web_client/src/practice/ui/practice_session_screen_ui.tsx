@@ -161,6 +161,12 @@ export function PracticeSessionScreenUi({ practiceRepository }: PracticeSessionS
           />
         ) : null}
 
+        {currentCard?.translation ? (
+          <p className="text-sm leading-relaxed text-slate-300">
+            {currentCard.translation}
+          </p>
+        ) : null}
+
         <h2 className="sr-only">Associations</h2>
         <ul className="space-y-3">
           {session.visibleAssociations.map((association) => {
@@ -232,8 +238,9 @@ export function PracticeSessionScreenUi({ practiceRepository }: PracticeSessionS
 
         {!onFront && currentCard ? (
           <div className="rounded-xl border border-accent-soft bg-accent-soft/40 px-4 py-4">
-            <p className="text-2xl font-semibold tracking-tight text-white">{currentCard.lemmaText}</p>
-            {currentCard.translation ? <p className="mt-2 text-sm text-slate-300">{currentCard.translation}</p> : null}
+            <p className="text-2xl font-semibold tracking-tight text-white">
+              {currentCard.lemmaText}
+            </p>
           </div>
         ) : null}
       </section>
