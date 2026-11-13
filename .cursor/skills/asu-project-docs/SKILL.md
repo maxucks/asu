@@ -11,6 +11,7 @@ description: >-
 
 ## Read order
 
+0. [AGENT_HANDOFF.md](../../../docs/AGENT_HANDOFF.md) — session context and pitfalls
 1. [CRAFT.md](../../../docs/CRAFT.md)
 2. [PROTOTYPE_STAGE.md](../../../docs/PROTOTYPE_STAGE.md)
 3. [ARCHITECTURE_RULES.md](../../../docs/ARCHITECTURE_RULES.md)
@@ -30,6 +31,12 @@ Grades: hard / medium / easy. Status: new / learning / repeating.
 ## Code rules (quick)
 
 - Craft: [CRAFT.md](../../../docs/CRAFT.md) (code is art).
-- `snake_case` filenames; provider wires `core/data_sources` mocks → repository → UI.
-- Controller → repository only; data layer throws; repository returns `Result`.
+- `snake_case` filenames; provider wires `core/data_sources` → repository → UI (mocks or `http_*_data_source.ts`).
+- **Server routes:** Zod in handler glue → repository (no server usecase files for simple routes).
+- **Client:** controller → use cases for validated writes; repository for orchestration only (no trim/URL checks).
+- Data layer throws; repository + use cases return `Result`.
+- **Never** add repository validate-then-`private` wrapper methods — critical rule in ARCHITECTURE_RULES.
+- Server routes: use `hono_response` (`ok`, `error`, …) directly — no local `respondXError` helpers.
 - View state: `create*` helpers in `*_view_state.ts`.
+- Client HTTP: data sources call the API; reuse `core/utils/request_json.ts` — **no** feature `*_api_client` between sources and fetch.
+- **Do not invent new layers or patterns** (clients, adapters, caches-as-services, etc.) without asking the user first and updating [ARCHITECTURE_RULES.md](../../../docs/ARCHITECTURE_RULES.md).

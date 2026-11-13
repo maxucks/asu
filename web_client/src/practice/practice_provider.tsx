@@ -1,11 +1,17 @@
 "use client"
 
-import { MockCaseDataSource } from "@/core/data_sources/case_data_source_mock"
-import { MockStudyRecordDataSource } from "@/core/data_sources/study_record_data_source_mock"
+import { HttpCaseDataSource } from "@/core/data_sources/http_case_data_source"
+import { HttpStudyRecordDataSource } from "@/core/data_sources/http_study_record_data_source"
+import type { PracticeCardDto } from "@asu/contracts"
 import { PracticeRepository } from "@/practice/practice_repository"
 import { PracticeSessionScreenUi } from "@/practice/ui/practice_session_screen_ui"
 
-export const practiceRepository = new PracticeRepository(new MockStudyRecordDataSource(), new MockCaseDataSource())
+const queueCardsById = new Map<string, PracticeCardDto>()
+
+export const practiceRepository = new PracticeRepository(
+  new HttpStudyRecordDataSource(queueCardsById),
+  new HttpCaseDataSource(queueCardsById),
+)
 
 export function PracticeSessionProvider() {
   return <PracticeSessionScreenUi practiceRepository={practiceRepository} />

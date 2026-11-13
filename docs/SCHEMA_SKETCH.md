@@ -40,7 +40,7 @@ export const usecases = sqliteTable(
     ),
     imgUrl: text("img_url"),
     description: text("description"),
-    translation: text("translation"),
+    meaning: text("meaning"),
     rudeness: integer("rudeness").notNull().default(0),
     formality: integer("formality").notNull().default(0),
     connotation: integer("connotation").notNull().default(0),

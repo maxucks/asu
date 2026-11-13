@@ -161,9 +161,9 @@ export function PracticeSessionScreenUi({ practiceRepository }: PracticeSessionS
           />
         ) : null}
 
-        {currentCard?.translation ? (
+        {currentCard?.meaning ? (
           <p className="text-sm leading-relaxed text-slate-300">
-            {currentCard.translation}
+            {currentCard.meaning}
           </p>
         ) : null}
 

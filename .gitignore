@@ -1,0 +1,23 @@
+node_modules
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+*.tsbuildinfo
+.eslintcache
+
+# Builds
+.next
+out
+dist
+.turbo
+
+# SQLite
+*.sqlite
+*.sqlite-journal
+server/data/
+/data/
+
+# Locks (keep bun.lock at package level)
+bun.lockb

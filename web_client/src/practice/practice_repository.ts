@@ -1,156 +1,40 @@
 import { err, ok } from "@/core/app_errors";
 import type { Result } from "@/core/app_errors";
-import type { AssociationDto, CaseDto } from "@/core/data_sources/case_data_source";
-import type { CaseDataSource } from "@/core/data_sources/case_data_source";
-import { normalizeImageAssociationUrl } from "@/practice/practice_association";
-import { PracticeError } from "@/practice/practice_errors";
-import type { StudyRecordDataSource } from "@/core/data_sources/study_record_data_source";
+import type { AssociationDto, CaseDto } from "@asu/contracts";
+import type { HttpCaseDataSource } from "@/core/data_sources/http_case_data_source";
+import type { HttpStudyRecordDataSource } from "@/core/data_sources/http_study_record_data_source";
+import type {
+  PracticeCardDto,
+  PracticeQueueDto,
+} from "@asu/contracts";
+import {
+  practiceAssociationErrorFromThrown,
+  PracticeErrAssociationNotOnCard,
+  PracticeErrAssociationWrongKind,
+  PracticeErrQueueEmpty,
+  practiceQueueErrorFromThrown,
+  type PracticeError,
+} from "@/practice/practice_errors";
 
-export type PracticeCardDto = {
-  readonly id: string;
-  readonly languageName: string;
-  readonly lemmaText: string;
-  readonly translation: string | null;
-  readonly associations: readonly AssociationDto[];
-};
-
-export type PracticeQueueDto = {
-  readonly cards: readonly PracticeCardDto[];
-};
-
-export const PRACTICE_GRADES = ["hard", "medium", "easy"] as const;
-
-export type PracticeGradeDto = (typeof PRACTICE_GRADES)[number];
+export type { PracticeCardDto, PracticeGradeDto, PracticeQueueDto } from "@asu/contracts";
+export { PracticeGrades } from "@asu/contracts";
 
 export class PracticeRepository {
   constructor(
-    private readonly studyRecordDataSource: StudyRecordDataSource,
-    private readonly caseDataSource: CaseDataSource,
+    private readonly studyRecordDataSource: HttpStudyRecordDataSource,
+    private readonly caseDataSource: HttpCaseDataSource,
   ) {}
 
-  async addTextAssociation(
+  async appendTextAssociation(
     caseId: string,
-    contentRef: string,
-  ): Promise<Result<PracticeCardDto, PracticeError>> {
-    const text = contentRef.trim();
-    if (text.length === 0) {
-      return err(
-        new PracticeError(
-          "PRACTICE_ASSOCIATION_SAVE_FAILED",
-          "Association text cannot be empty.",
-        ),
-      );
-    }
-
-    return this.appendAssociation(caseId, {
-      kind: "text",
-      contentRef: text,
-    });
-  }
-
-  async addImageAssociationFromUrl(
-    caseId: string,
-    rawUrl: string,
-  ): Promise<Result<PracticeCardDto, PracticeError>> {
-    const url = normalizeImageAssociationUrl(rawUrl);
-    if (!url) {
-      return err(
-        new PracticeError(
-          "PRACTICE_ASSOCIATION_SAVE_FAILED",
-          "Enter a valid http or https image URL.",
-        ),
-      );
-    }
-
-    return this.appendAssociation(caseId, {
-      kind: "image",
-      contentRef: url,
-    });
-  }
-
-  async updateTextAssociation(
-    caseId: string,
-    associationId: string,
-    contentRef: string,
-  ): Promise<Result<PracticeCardDto, PracticeError>> {
-    const text = contentRef.trim();
-    if (text.length === 0) {
-      return err(
-        new PracticeError(
-          "PRACTICE_ASSOCIATION_SAVE_FAILED",
-          "Association text cannot be empty.",
-        ),
-      );
-    }
-
-    return this.updateAssociationContentRef(caseId, associationId, "text", text);
-  }
-
-  async updateImageAssociationFromUrl(
-    caseId: string,
-    associationId: string,
-    rawUrl: string,
-  ): Promise<Result<PracticeCardDto, PracticeError>> {
-    const url = normalizeImageAssociationUrl(rawUrl);
-    if (!url) {
-      return err(
-        new PracticeError(
-          "PRACTICE_ASSOCIATION_SAVE_FAILED",
-          "Enter a valid http or https image URL.",
-        ),
-      );
-    }
-
-    return this.updateAssociationContentRef(caseId, associationId, "image", url);
-  }
-
-  private async updateAssociationContentRef(
-    caseId: string,
-    associationId: string,
-    expectedKind: AssociationDto["kind"],
-    contentRef: string,
-  ): Promise<Result<PracticeCardDto, PracticeError>> {
-    try {
-      const existing = await this.caseDataSource.getCaseDtoById(caseId);
-      const target = existing.associations.find((item) => item.id === associationId);
-      if (!target) {
-        return err(
-          new PracticeError(
-            "PRACTICE_ASSOCIATION_NOT_FOUND",
-            "That association is no longer on this card.",
-          ),
-        );
-      }
-      if (target.kind !== expectedKind) {
-        return err(
-          new PracticeError(
-            "PRACTICE_ASSOCIATION_SAVE_FAILED",
-            "This association cannot be edited that way.",
-          ),
-        );
-      }
-
-      const caseDto = await this.caseDataSource.updateAssociationContentRefDto(
-        caseId,
-        associationId,
-        contentRef,
-      );
-      return ok(PracticeRepository.caseDtoToPracticeCard(caseDto));
-    } catch (thrown) {
-      return err(PracticeRepository.associationErrorFromThrown(thrown));
-    }
-  }
-
-  private async appendAssociation(
-    caseId: string,
-    payload: Pick<AssociationDto, "kind" | "contentRef">,
+    text: string,
   ): Promise<Result<PracticeCardDto, PracticeError>> {
     try {
       const existing = await this.caseDataSource.getCaseDtoById(caseId);
       const association: AssociationDto = {
         id: `assoc-${crypto.randomUUID()}`,
-        kind: payload.kind,
-        contentRef: payload.contentRef,
+        kind: "text",
+        contentRef: text,
         sortOrder: existing.associations.length,
         createdAt: new Date().toISOString(),
         hiddenFromPractice: false,
@@ -161,7 +45,83 @@ export class PracticeRepository {
       );
       return ok(PracticeRepository.caseDtoToPracticeCard(caseDto));
     } catch (thrown) {
-      return err(PracticeRepository.associationErrorFromThrown(thrown));
+      return err(practiceAssociationErrorFromThrown(thrown));
+    }
+  }
+
+  async appendImageAssociation(
+    caseId: string,
+    url: string,
+  ): Promise<Result<PracticeCardDto, PracticeError>> {
+    try {
+      const existing = await this.caseDataSource.getCaseDtoById(caseId);
+      const association: AssociationDto = {
+        id: `assoc-${crypto.randomUUID()}`,
+        kind: "image",
+        contentRef: url,
+        sortOrder: existing.associations.length,
+        createdAt: new Date().toISOString(),
+        hiddenFromPractice: false,
+      };
+      const caseDto = await this.caseDataSource.appendAssociationDto(
+        caseId,
+        association,
+      );
+      return ok(PracticeRepository.caseDtoToPracticeCard(caseDto));
+    } catch (thrown) {
+      return err(practiceAssociationErrorFromThrown(thrown));
+    }
+  }
+
+  async updateTextAssociation(
+    caseId: string,
+    associationId: string,
+    text: string,
+  ): Promise<Result<PracticeCardDto, PracticeError>> {
+    try {
+      const existing = await this.caseDataSource.getCaseDtoById(caseId);
+      const target = existing.associations.find((item) => item.id === associationId);
+      if (!target) {
+        return err(PracticeErrAssociationNotOnCard);
+      }
+      if (target.kind !== "text") {
+        return err(PracticeErrAssociationWrongKind);
+      }
+
+      const caseDto = await this.caseDataSource.updateTextAssociationContentRefDto(
+        caseId,
+        associationId,
+        text,
+      );
+      return ok(PracticeRepository.caseDtoToPracticeCard(caseDto));
+    } catch (thrown) {
+      return err(practiceAssociationErrorFromThrown(thrown));
+    }
+  }
+
+  async updateImageAssociation(
+    caseId: string,
+    associationId: string,
+    url: string,
+  ): Promise<Result<PracticeCardDto, PracticeError>> {
+    try {
+      const existing = await this.caseDataSource.getCaseDtoById(caseId);
+      const target = existing.associations.find((item) => item.id === associationId);
+      if (!target) {
+        return err(PracticeErrAssociationNotOnCard);
+      }
+      if (target.kind !== "image") {
+        return err(PracticeErrAssociationWrongKind);
+      }
+
+      const caseDto = await this.caseDataSource.updateImageAssociationContentRefDto(
+        caseId,
+        associationId,
+        url,
+      );
+      return ok(PracticeRepository.caseDtoToPracticeCard(caseDto));
+    } catch (thrown) {
+      return err(practiceAssociationErrorFromThrown(thrown));
     }
   }
 
@@ -178,7 +138,7 @@ export class PracticeRepository {
       );
       return ok(PracticeRepository.caseDtoToPracticeCard(caseDto));
     } catch (thrown) {
-      return err(PracticeRepository.associationErrorFromThrown(thrown));
+      return err(practiceAssociationErrorFromThrown(thrown));
     }
   }
 
@@ -193,7 +153,7 @@ export class PracticeRepository {
       );
       return ok(PracticeRepository.caseDtoToPracticeCard(caseDto));
     } catch (thrown) {
-      return err(PracticeRepository.associationErrorFromThrown(thrown));
+      return err(practiceAssociationErrorFromThrown(thrown));
     }
   }
 
@@ -202,9 +162,7 @@ export class PracticeRepository {
       const dueRecords = await this.studyRecordDataSource.listDueStudyRecordDtos();
 
       if (dueRecords.length === 0) {
-        return err(
-          new PracticeError("PRACTICE_NO_CARDS", "Nothing to review in the queue."),
-        );
+        return err(PracticeErrQueueEmpty);
       }
 
       const cards: PracticeCardDto[] = [];
@@ -215,7 +173,7 @@ export class PracticeRepository {
 
       return ok({ cards });
     } catch (thrown) {
-      return err(PracticeRepository.errorFromThrown(thrown));
+      return err(practiceQueueErrorFromThrown(thrown));
     }
   }
 
@@ -224,34 +182,9 @@ export class PracticeRepository {
       id: caseDto.id,
       languageName: caseDto.languageName,
       lemmaText: caseDto.lemmaText,
-      translation: caseDto.translation,
+      meaning: caseDto.meaning,
       associations: caseDto.associations,
     };
   }
 
-  private static associationErrorFromThrown(thrown: unknown): PracticeError {
-    if (thrown instanceof Error) {
-      if (thrown.message.startsWith("Record not found")) {
-        return new PracticeError("PRACTICE_CARD_NOT_FOUND", thrown.message);
-      }
-      if (thrown.message.startsWith("Association not found")) {
-        return new PracticeError("PRACTICE_ASSOCIATION_NOT_FOUND", thrown.message);
-      }
-      return new PracticeError("PRACTICE_ASSOCIATION_SAVE_FAILED", thrown.message);
-    }
-    return new PracticeError(
-      "PRACTICE_ASSOCIATION_SAVE_FAILED",
-      "Could not save association.",
-    );
-  }
-
-  private static errorFromThrown(thrown: unknown): PracticeError {
-    if (thrown instanceof Error) {
-      if (thrown.message.startsWith("Record not found")) {
-        return new PracticeError("PRACTICE_CARD_NOT_FOUND", thrown.message);
-      }
-      return new PracticeError("PRACTICE_NO_CARDS", thrown.message);
-    }
-    return new PracticeError("PRACTICE_NO_CARDS", "Practice data failed.");
-  }
 }

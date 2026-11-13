@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import type { AssociationKind } from "@/core/data_sources/case_data_source"
+import type { AssociationKind } from "@asu/contracts"
 import type { Result } from "@/core/app_errors"
 import type { AssociationComposeMode } from "@/practice/practice_association"
-import { PracticeError } from "@/practice/practice_errors"
+import { PracticeErrQueueEmpty, type PracticeError } from "@/practice/practice_errors"
 import { PracticeCard } from "@/practice/practice_model"
 import type { PracticeGradeDto, PracticeCardDto } from "@/practice/practice_repository"
-import { PRACTICE_GRADES } from "@/practice/practice_repository"
+import { PracticeGrades } from "@/practice/practice_repository"
+import * as practiceAssociationUsecases from "@/practice/practice_association_usecases"
 import type { PracticeRepository } from "@/practice/practice_repository"
 import {
   createPracticeSessionViewStateAfterGrade,
@@ -28,7 +29,7 @@ import {
 } from "@/practice/practice_session_view_state"
 
 function isPracticeGrade(value: string): value is PracticeGradeDto {
-  return (PRACTICE_GRADES as readonly string[]).includes(value)
+  return (PracticeGrades as readonly string[]).includes(value)
 }
 
 export function usePracticeSessionController(practiceRepository: PracticeRepository) {
@@ -52,11 +53,7 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
 
       const cards = result.value.cards.map((dto) => PracticeCard.fromDto(dto))
       if (cards.length === 0) {
-        setState(
-          createPracticeSessionViewStateError(
-            new PracticeError("PRACTICE_NO_CARDS", "Nothing to review in the queue."),
-          ),
-        )
+        setState(createPracticeSessionViewStateError(PracticeErrQueueEmpty))
         return
       }
 
@@ -221,26 +218,42 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
 
   const addTextAssociation = useCallback(
     async (text: string) =>
-      mutateOnCurrentCard("text", (caseId) => practiceRepository.addTextAssociation(caseId, text)),
+      mutateOnCurrentCard("text", (caseId) =>
+        practiceAssociationUsecases.addTextAssociation(practiceRepository, caseId, text),
+      ),
     [mutateOnCurrentCard, practiceRepository],
   )
 
   const addImageAssociationFromUrl = useCallback(
     async (url: string) =>
-      mutateOnCurrentCard("image_url", (caseId) => practiceRepository.addImageAssociationFromUrl(caseId, url)),
+      mutateOnCurrentCard("image_url", (caseId) =>
+        practiceAssociationUsecases.addImageAssociationFromUrl(practiceRepository, caseId, url),
+      ),
     [mutateOnCurrentCard, practiceRepository],
   )
 
   const updateTextAssociation = useCallback(
     async (associationId: string, text: string) =>
-      mutateOnCurrentCard("text", (caseId) => practiceRepository.updateTextAssociation(caseId, associationId, text)),
+      mutateOnCurrentCard("text", (caseId) =>
+        practiceAssociationUsecases.updateTextAssociation(
+          practiceRepository,
+          caseId,
+          associationId,
+          text,
+        ),
+      ),
     [mutateOnCurrentCard, practiceRepository],
   )
 
   const updateImageAssociationFromUrl = useCallback(
     async (associationId: string, url: string) =>
       mutateOnCurrentCard("image_url", (caseId) =>
-        practiceRepository.updateImageAssociationFromUrl(caseId, associationId, url),
+        practiceAssociationUsecases.updateImageAssociationFromUrl(
+          practiceRepository,
+          caseId,
+          associationId,
+          url,
+        ),
       ),
     [mutateOnCurrentCard, practiceRepository],
   )

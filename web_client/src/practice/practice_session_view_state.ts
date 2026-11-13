@@ -1,4 +1,4 @@
-import type { AssociationKind } from "@/core/data_sources/case_data_source"
+import type { AssociationKind } from "@asu/contracts"
 import type { PracticeError } from "@/practice/practice_errors"
 import { Association, type PracticeAssociation, type PracticeCard } from "@/practice/practice_model"
 

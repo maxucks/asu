@@ -1,5 +1,8 @@
-import { ASSOCIATION_KINDS, type AssociationKind } from "@/core/data_sources/case_data_source"
+import { AssociationKinds, type AssociationKind } from "@asu/contracts"
+import { normalizeImageAssociationUrl } from "@asu/contracts"
 import type { PracticeAssociation } from "@/practice/practice_model"
+
+export { normalizeImageAssociationUrl } from "@asu/contracts"
 
 /** Image association `contentRef` helpers (no I/O). */
 
@@ -20,21 +23,6 @@ const IMAGE_STUB_LABELS: Record<ImageAssociationStubRef, string> = {
 }
 
 const IMAGE_STUB_REF_SET = new Set<string>(Object.values(IMAGE_ASSOCIATION_STUB_REFS))
-
-export function normalizeImageAssociationUrl(raw: string): string | null {
-  const trimmed = raw.trim()
-  if (trimmed.length === 0 || trimmed.length > 2048) return null
-
-  let parsed: URL
-  try {
-    parsed = new URL(trimmed)
-  } catch {
-    return null
-  }
-
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null
-  return parsed.toString()
-}
 
 export function isImageAssociationUrl(contentRef: string): boolean {
   return normalizeImageAssociationUrl(contentRef) !== null
@@ -78,7 +66,7 @@ export type AssociationAddAction =
       readonly kind: Exclude<AssociationKind, "text" | "image">
     }
 
-const NON_TEXT_IMAGE_KINDS = ASSOCIATION_KINDS.filter(
+const NonTextImageKinds = AssociationKinds.filter(
   (kind): kind is Exclude<AssociationKind, "text" | "image"> => kind !== "text" && kind !== "image",
 )
 
@@ -115,7 +103,7 @@ export const ASSOCIATION_ADD_MENU: readonly {
     },
     label: "GIF from library (stub)",
   },
-  ...NON_TEXT_IMAGE_KINDS.map((kind) => ({
+  ...NonTextImageKinds.map((kind) => ({
     pick: { action: "kind_stub" as const, kind },
     label: KIND_STUB_MENU_LABELS[kind],
   })),
