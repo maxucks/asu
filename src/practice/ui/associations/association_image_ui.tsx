@@ -1,13 +1,11 @@
-"use client";
-
-import { useState } from "react";
+import { useState } from "react"
 
 type AssociationImageUiProps = {
-  readonly url: string;
-};
+  readonly url: string
+}
 
 export function AssociationImageUi({ url }: AssociationImageUiProps) {
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState(false)
 
   if (failed) {
     return (
@@ -17,12 +15,12 @@ export function AssociationImageUi({ url }: AssociationImageUiProps) {
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-2 inline-block break-all text-[var(--accent)] underline-offset-2 hover:underline"
+          className="mt-2 inline-block break-all text-accent underline-offset-2 hover:underline"
         >
           Open link
         </a>
       </div>
-    );
+    )
   }
 
   return (
@@ -30,11 +28,11 @@ export function AssociationImageUi({ url }: AssociationImageUiProps) {
       {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary user URLs */}
       <img
         src={url}
-        alt=""
+        alt="Association image"
         referrerPolicy="no-referrer"
         onError={() => setFailed(true)}
         className="max-h-64 w-full object-contain"
       />
     </figure>
-  );
+  )
 }

@@ -1,17 +1,15 @@
-"use client";
-
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react"
 
 type ConfirmDialogUiProps = {
-  readonly open: boolean;
-  readonly title: string;
-  readonly message: string;
-  readonly confirmLabel?: string;
-  readonly cancelLabel?: string;
-  readonly confirming?: boolean;
-  readonly onConfirm: () => void;
-  readonly onCancel: () => void;
-};
+  readonly open: boolean
+  readonly title: string
+  readonly message: string
+  readonly confirmLabel?: string
+  readonly cancelLabel?: string
+  readonly confirming?: boolean
+  readonly onConfirm: () => void
+  readonly onCancel: () => void
+}
 
 export function ConfirmDialogUi({
   open,
@@ -23,25 +21,25 @@ export function ConfirmDialogUi({
   onConfirm,
   onCancel,
 }: ConfirmDialogUiProps) {
-  const cancelRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
-    if (!open) return;
-    cancelRef.current?.focus();
-  }, [open]);
+    if (!open) return
+    cancelRef.current?.focus()
+  }, [open])
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onCancel();
+      if (event.key === "Escape") onCancel()
     }
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onCancel]);
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [open, onCancel])
 
-  if (!open) return null;
+  if (!open) return null
 
   return (
     <div
@@ -78,12 +76,12 @@ export function ConfirmDialogUi({
             type="button"
             disabled={confirming}
             onClick={onConfirm}
-            className="rounded-lg bg-[var(--danger)] px-3 py-2 text-sm font-medium text-white disabled:opacity-40"
+            className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white disabled:opacity-40"
           >
             {confirming ? "Working…" : confirmLabel}
           </button>
         </div>
       </div>
     </div>
-  );
+  )
 }

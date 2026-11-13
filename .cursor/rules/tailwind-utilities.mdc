@@ -1,0 +1,13 @@
+---
+description: Prefer Tailwind scale utilities over arbitrary values in class names
+globs: **/*.{tsx,jsx}
+alwaysApply: false
+---
+
+# Tailwind class names
+
+- Prefer **design-system utilities** (`min-w-56`, `max-h-96`, `gap-4`, `text-sm`) over arbitrary brackets (`min-w-[14rem]`, `max-h-[384px]`) when they match the default scale.
+- Accept IntelliSense / `tailwindcss` suggestions: e.g. `14rem` → `min-w-56`, `10.5rem` → `min-w-42`, `4.5rem` → `min-h-18`, `24rem` → `max-h-96`.
+- Use **theme tokens** from `globals.css` (`bg-accent`, `text-danger`) instead of `bg-[var(--accent)]`.
+- When a value is not on the scale but is reused, add a named **`@utility`** in `globals.css` (e.g. `max-h-dropdown` for `min(24rem, 70dvh)`).
+- Keep arbitrary values only for one-offs that have no scale or utility equivalent (e.g. `has-[button[aria-expanded=true]]`).

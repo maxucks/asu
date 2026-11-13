@@ -1,0 +1,11 @@
+---
+description: Next.js App Router client boundary for practice feature
+alwaysApply: true
+---
+
+# Client components (Next.js)
+
+- Put `"use client"` only on the **server → client entry** (currently `practice_provider.tsx` from `app/page.tsx`).
+- Do **not** add `"use client"` to every `*_ui.tsx` or hook module; they are already in the client bundle when imported below the provider.
+- Extra `"use client"` files make the Next TypeScript plugin treat each file as a boundary entry and warn that props like `onConfirm`, `onGrade`, and `practiceRepository` are not serializable (Server Action naming is **not** the fix — shrinking the boundary is).
+- Server → client props must be JSON-serializable; pass callbacks and repository instances only **between client components** under the provider.

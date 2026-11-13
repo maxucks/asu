@@ -12,6 +12,23 @@
   --danger: #f4212e;
 }
 
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+}
+
+/* Scroll cap for long menus: shorter than 24rem on small viewports */
+@utility max-h-dropdown {
+  max-height: min(24rem, 70dvh);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

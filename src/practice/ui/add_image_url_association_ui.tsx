@@ -1,19 +1,17 @@
-"use client";
-
-import { useState } from "react";
-import { normalizeImageAssociationUrl } from "@/practice/image_association_ref";
+import { useState } from "react"
+import { normalizeImageAssociationUrl } from "@/practice/practice_association"
 import {
   AddAssociationComposeShellUi,
   associationComposeFieldClassName,
-} from "@/practice/ui/add_association_compose_shell_ui";
+} from "@/practice/ui/add_association_compose_shell_ui"
 
 type AddImageUrlAssociationUiProps = {
-  readonly onCancel: () => void;
-  readonly onSave: (url: string) => void;
-  readonly saving?: boolean;
-  readonly initialValue?: string;
-  readonly intent?: "add" | "edit";
-};
+  readonly onCancel: () => void
+  readonly onSave: (url: string) => void
+  readonly saving?: boolean
+  readonly initialValue?: string
+  readonly intent?: "add" | "edit"
+}
 
 export function AddImageUrlAssociationUi({
   onCancel,
@@ -22,10 +20,10 @@ export function AddImageUrlAssociationUi({
   initialValue = "",
   intent = "add",
 }: AddImageUrlAssociationUiProps) {
-  const [raw, setRaw] = useState(initialValue);
-  const normalized = normalizeImageAssociationUrl(raw);
-  const showInvalid = raw.trim().length > 0 && normalized === null;
-  const editing = intent === "edit";
+  const [raw, setRaw] = useState(initialValue)
+  const normalized = normalizeImageAssociationUrl(raw)
+  const showInvalid = raw.trim().length > 0 && normalized === null
+  const editing = intent === "edit"
 
   return (
     <AddAssociationComposeShellUi
@@ -35,17 +33,13 @@ export function AddImageUrlAssociationUi({
       submitLabel={editing ? "Save" : "Add"}
       onCancel={onCancel}
       onSubmit={() => {
-        if (normalized) onSave(normalized);
+        if (normalized) onSave(normalized)
       }}
       hint={
         showInvalid ? (
-          <p className="text-xs text-[var(--danger)]">
-            Enter a valid http or https URL.
-          </p>
+          <p className="text-xs text-danger">Enter a valid http or https URL.</p>
         ) : (
-          <p className="text-xs text-slate-500">
-            Tip: use “Copy image address” from your browser when possible.
-          </p>
+          <p className="text-xs text-slate-500">Tip: use “Copy image address” from your browser when possible.</p>
         )
       }
     >
@@ -59,5 +53,5 @@ export function AddImageUrlAssociationUi({
         className={associationComposeFieldClassName}
       />
     </AddAssociationComposeShellUi>
-  );
+  )
 }

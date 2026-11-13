@@ -2,7 +2,7 @@ import { err, ok } from "@/core/app_errors";
 import type { Result } from "@/core/app_errors";
 import type { AssociationDto, CaseDto } from "@/core/data_sources/case_data_source";
 import type { CaseDataSource } from "@/core/data_sources/case_data_source";
-import { normalizeImageAssociationUrl } from "@/practice/image_association_ref";
+import { normalizeImageAssociationUrl } from "@/practice/practice_association";
 import { PracticeError } from "@/practice/practice_errors";
 import type { StudyRecordDataSource } from "@/core/data_sources/study_record_data_source";
 

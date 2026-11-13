@@ -1,0 +1,11 @@
+---
+description: When to split TS modules in ASU (domain over micro-files)
+alwaysApply: true
+---
+
+# File splitting
+
+- **UI:** one main component per `*_ui.tsx` file is fine; colocate small private helpers in the same file when they serve that screen.
+- **Business logic:** group by **domain/feature file** (e.g. `practice_association.ts`, `practice_session_view_state.ts`), not one file per micro-concern (labels, editor state, editable flags).
+- **Split only** when a single file becomes too large to read or when a chunk is reused across unrelated features.
+- Prefer names like `practice_association.ts` over many `association_*.ts` shards.

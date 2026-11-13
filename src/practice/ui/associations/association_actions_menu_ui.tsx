@@ -1,23 +1,17 @@
-"use client";
+import { useEffect, useRef, useState } from "react"
 
-import { useEffect, useRef, useState } from "react";
-
-export type AssociationMenuAction =
-  | "edit"
-  | "hide"
-  | "unhide"
-  | "delete";
+export type AssociationMenuAction = "edit" | "hide" | "unhide" | "delete"
 
 type AssociationActionsMenuUiProps = {
-  readonly canEdit?: boolean;
-  readonly canHide?: boolean;
-  readonly canUnhide?: boolean;
-  readonly canDelete?: boolean;
-  readonly onEdit?: () => void;
-  readonly onHide?: () => void;
-  readonly onUnhide?: () => void;
-  readonly onDelete?: () => void;
-};
+  readonly canEdit?: boolean
+  readonly canHide?: boolean
+  readonly canUnhide?: boolean
+  readonly canDelete?: boolean
+  readonly onEdit?: () => void
+  readonly onHide?: () => void
+  readonly onUnhide?: () => void
+  readonly onDelete?: () => void
+}
 
 export function AssociationActionsMenuUi({
   canEdit,
@@ -29,54 +23,50 @@ export function AssociationActionsMenuUi({
   onUnhide,
   onDelete,
 }: AssociationActionsMenuUiProps) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return
 
     function onPointerDown(event: MouseEvent) {
       if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
+        setOpen(false)
       }
     }
 
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [open]);
+    document.addEventListener("pointerdown", onPointerDown)
+    return () => document.removeEventListener("pointerdown", onPointerDown)
+  }, [open])
 
   const items: readonly {
-    readonly action: AssociationMenuAction;
-    readonly label: string;
-    readonly danger?: boolean;
+    readonly action: AssociationMenuAction
+    readonly label: string
+    readonly danger?: boolean
   }[] = [
     ...(canEdit && onEdit ? [{ action: "edit" as const, label: "Edit" }] : []),
     ...(canHide && onHide ? [{ action: "hide" as const, label: "Hide from card" }] : []),
-    ...(canUnhide && onUnhide
-      ? [{ action: "unhide" as const, label: "Show on card" }]
-      : []),
-    ...(canDelete && onDelete
-      ? [{ action: "delete" as const, label: "Delete…", danger: true }]
-      : []),
-  ];
+    ...(canUnhide && onUnhide ? [{ action: "unhide" as const, label: "Show on card" }] : []),
+    ...(canDelete && onDelete ? [{ action: "delete" as const, label: "Delete…", danger: true }] : []),
+  ]
 
-  if (items.length === 0) return null;
+  if (items.length === 0) return null
 
   function pick(action: AssociationMenuAction) {
-    setOpen(false);
+    setOpen(false)
     switch (action) {
       case "edit":
-        onEdit?.();
-        return;
+        onEdit?.()
+        return
       case "hide":
-        onHide?.();
-        return;
+        onHide?.()
+        return
       case "unhide":
-        onUnhide?.();
-        return;
+        onUnhide?.()
+        return
       case "delete":
-        onDelete?.();
-        return;
+        onDelete?.()
+        return
     }
   }
 
@@ -93,7 +83,7 @@ export function AssociationActionsMenuUi({
       </button>
       {open ? (
         <ul
-          className="absolute right-0 z-20 mt-1 min-w-[10.5rem] overflow-hidden rounded-lg border border-slate-600 bg-slate-900 py-1 shadow-xl"
+          className="absolute right-0 z-20 mt-1 min-w-42 overflow-hidden rounded-lg border border-slate-600 bg-slate-900 py-1 shadow-xl"
           role="menu"
         >
           {items.map((item) => (
@@ -113,5 +103,5 @@ export function AssociationActionsMenuUi({
         </ul>
       ) : null}
     </div>
-  );
+  )
 }

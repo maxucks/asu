@@ -1,18 +1,16 @@
-"use client";
-
-import { useState } from "react";
+import { useState } from "react"
 import {
   AddAssociationComposeShellUi,
   associationComposeFieldClassName,
-} from "@/practice/ui/add_association_compose_shell_ui";
+} from "@/practice/ui/add_association_compose_shell_ui"
 
 type AddTextAssociationUiProps = {
-  readonly onCancel: () => void;
-  readonly onSave: (text: string) => void;
-  readonly saving?: boolean;
-  readonly initialValue?: string;
-  readonly intent?: "add" | "edit";
-};
+  readonly onCancel: () => void
+  readonly onSave: (text: string) => void
+  readonly saving?: boolean
+  readonly initialValue?: string
+  readonly intent?: "add" | "edit"
+}
 
 export function AddTextAssociationUi({
   onCancel,
@@ -21,9 +19,9 @@ export function AddTextAssociationUi({
   initialValue = "",
   intent = "add",
 }: AddTextAssociationUiProps) {
-  const [text, setText] = useState(initialValue);
-  const trimmed = text.trim();
-  const editing = intent === "edit";
+  const [text, setText] = useState(initialValue)
+  const trimmed = text.trim()
+  const editing = intent === "edit"
 
   return (
     <AddAssociationComposeShellUi
@@ -44,5 +42,5 @@ export function AddTextAssociationUi({
         className={associationComposeFieldClassName}
       />
     </AddAssociationComposeShellUi>
-  );
+  )
 }

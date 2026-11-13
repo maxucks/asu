@@ -1,0 +1,15 @@
+---
+description: Run ESLint and typecheck after completing code changes in ASU
+alwaysApply: true
+---
+
+# Lint and typecheck before finishing
+
+When you finish a task that changed project source (or the user asks to clean up warnings):
+
+1. Run `npm run lint` and `npm run typecheck` from the repo root.
+2. Fix any issues in `src/**` and project config you introduced; do not edit generated files (`next-env.d.ts`, `.next/**`).
+3. Re-run until both commands pass.
+4. Briefly mention in the wrap-up that lint/typecheck were run and are clean (or what remains if blocked).
+
+Do not lint build artifacts; `eslint.config.mjs` already ignores `.next/`, `node_modules/`, and `next-env.d.ts`.
