@@ -10,6 +10,7 @@ export type PracticeSessionReadyViewState = {
   readonly cardIndex: number;
   readonly phase: PracticeSessionPhase;
   readonly sessionAssociations: readonly Association[];
+  readonly revealedHiddenAssociationIds: readonly string[];
 };
 
 export type PracticeSessionViewState =
@@ -43,6 +44,7 @@ export function createPracticeSessionViewStateReady(
   cardIndex = 0,
   phase: PracticeSessionPhase = "front",
   sessionAssociations: readonly Association[] = [],
+  revealedHiddenAssociationIds: readonly string[] = [],
 ): PracticeSessionReadyViewState {
   return {
     status: "ready",
@@ -50,6 +52,7 @@ export function createPracticeSessionViewStateReady(
     cardIndex,
     phase,
     sessionAssociations,
+    revealedHiddenAssociationIds,
   };
 }
 
@@ -61,6 +64,7 @@ export function createPracticeSessionViewStateReadyRevealed(
     ready.cardIndex,
     "back",
     ready.sessionAssociations,
+    ready.revealedHiddenAssociationIds,
   );
 }
 
@@ -71,7 +75,7 @@ export function createPracticeSessionViewStateAfterGrade(
   if (nextIndex >= ready.cards.length) {
     return createPracticeSessionViewStateFinished();
   }
-  return createPracticeSessionViewStateReady(ready.cards, nextIndex, "front", []);
+  return createPracticeSessionViewStateReady(ready.cards, nextIndex, "front");
 }
 
 export function createPracticeSessionViewStateWithAssociation(
@@ -83,6 +87,7 @@ export function createPracticeSessionViewStateWithAssociation(
     ready.cardIndex,
     ready.phase,
     [...ready.sessionAssociations, association],
+    ready.revealedHiddenAssociationIds,
   );
 }
 
@@ -98,18 +103,67 @@ export function createPracticeSessionViewStateWithReplacedCard(
     ready.cardIndex,
     ready.phase,
     ready.sessionAssociations,
+    ready.revealedHiddenAssociationIds,
   );
 }
 
-export function createSessionAssociationStub(
+export function createPracticeSessionViewStateWithToggledRevealedHidden(
+  ready: PracticeSessionReadyViewState,
+  associationId: string,
+): PracticeSessionReadyViewState {
+  const revealed = ready.revealedHiddenAssociationIds.includes(associationId)
+    ? ready.revealedHiddenAssociationIds.filter((id) => id !== associationId)
+    : [...ready.revealedHiddenAssociationIds, associationId];
+
+  return createPracticeSessionViewStateReady(
+    ready.cards,
+    ready.cardIndex,
+    ready.phase,
+    ready.sessionAssociations,
+    revealed,
+  );
+}
+
+export function createPracticeSessionViewStateWithoutSessionAssociation(
+  ready: PracticeSessionReadyViewState,
+  associationId: string,
+): PracticeSessionReadyViewState {
+  return createPracticeSessionViewStateReady(
+    ready.cards,
+    ready.cardIndex,
+    ready.phase,
+    ready.sessionAssociations.filter((item) => item.id !== associationId),
+    ready.revealedHiddenAssociationIds.filter((id) => id !== associationId),
+  );
+}
+
+export function createPracticeSessionViewStateWithSessionAssociationPatched(
+  ready: PracticeSessionReadyViewState,
+  associationId: string,
+  patch: (association: Association) => Association,
+): PracticeSessionReadyViewState {
+  return createPracticeSessionViewStateReady(
+    ready.cards,
+    ready.cardIndex,
+    ready.phase,
+    ready.sessionAssociations.map((item) =>
+      item.id === associationId ? patch(item) : item,
+    ),
+    ready.revealedHiddenAssociationIds,
+  );
+}
+
+export function createSessionAssociation(
   ready: PracticeSessionReadyViewState,
   kind: AssociationKind,
+  contentRef?: string,
 ): Association | null {
   if (kind === "text") return null;
 
   const card = ready.cards[ready.cardIndex];
   if (!card) return null;
 
-  const nextOrder = card.associations.length + ready.sessionAssociations.length;
-  return Association.kindStub(card.id, kind, nextOrder);
+  const sortOrder = card.associations.length + ready.sessionAssociations.length;
+  const ref = contentRef ?? `stub:${kind}`;
+  return Association.sessionCue(card.id, kind, ref, sortOrder);
 }

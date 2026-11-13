@@ -16,6 +16,8 @@ export type AssociationDto = {
   readonly contentRef: string;
   readonly sortOrder: number;
   readonly createdAt: string;
+  /** When true, cue is stored but collapsed on the practice card face until revealed. */
+  readonly hiddenFromPractice: boolean;
 };
 
 export type CaseDto = {
@@ -36,4 +38,15 @@ export interface CaseDataSource {
     caseId: string,
     association: AssociationDto,
   ): Promise<CaseDto>;
+  updateAssociationContentRefDto(
+    caseId: string,
+    associationId: string,
+    contentRef: string,
+  ): Promise<CaseDto>;
+  updateAssociationHiddenFromPracticeDto(
+    caseId: string,
+    associationId: string,
+    hiddenFromPractice: boolean,
+  ): Promise<CaseDto>;
+  deleteAssociationDto(caseId: string, associationId: string): Promise<CaseDto>;
 }

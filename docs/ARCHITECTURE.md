@@ -1,38 +1,21 @@
-# ASU — Application Architecture (brief)
+# Architecture (repo)
 
-Client-only **Next.js** prototype. Separate backend later. **Bun**, **TypeScript**, **Tailwind**. File names: **snake_case**.
+- Client-only **Next.js** prototype; backend later.
+- **Bun**, **TypeScript**, **Tailwind**; files **`snake_case`**.
 
-## Layout
+## Layout rules
 
-```
-src/
-  core/
-    app_errors.ts
-    data_sources/               # driver interfaces + boundary types + mocks
-      case_data_source.ts
-      case_data_source_mock.ts
-      study_record_data_source.ts
-      study_record_data_source_mock.ts
-  practice/                     # app logic + UI for review sessions
-    practice_errors.ts
-    practice_model.ts             # PracticeCard, Association classes
-    practice_repository.ts      # PracticeRepository class
-    practice_provider.tsx
-    practice_session_view_state.ts  # UI state types + create* factories
-    practice_session_controller.ts
-    ui/
-```
+- `src/core/data_sources/` — driver interfaces, boundary types, mocks.
+- `src/practice/` — feature: repository, model, errors, provider, controller, view state, `ui/`.
+- `src/app/` — Next routes (`page.tsx`, `layout.tsx`).
 
-## Layer flow
+## Flow
 
-```
-app/page → practice_provider → UI → controller(repo) → repository → core/data_sources (+ future clients)
-```
+`app/page` → **provider** → **UI** → **controller** → **repository** → **data sources** (later **clients**).
 
-**Controllers** use **repositories** only. **Repositories** combine **data sources** (and later **clients** for Redis, HTTP, etc.). **Providers** wire concrete drivers into repositories for a feature.
+- **Controller** → repository only.
+- **Provider** wires mocks/sources → repository → screen.
 
-## Docs
+## See also
 
-[ARCHITECTURE_RULES.md](./ARCHITECTURE_RULES.md) · [PROJECT_DESCRIPTION.md](./PROJECT_DESCRIPTION.md) · [DATABASE_ARCHITECTURE.md](./DATABASE_ARCHITECTURE.md)
-
-Skill: **`asu-project-docs`**
+[CRAFT.md](./CRAFT.md) · [ARCHITECTURE_RULES.md](./ARCHITECTURE_RULES.md) · [PROJECT_DESCRIPTION.md](./PROJECT_DESCRIPTION.md) · [DATABASE_ARCHITECTURE.md](./DATABASE_ARCHITECTURE.md) · [PROTOTYPE_STAGE.md](./PROTOTYPE_STAGE.md)

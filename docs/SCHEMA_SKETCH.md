@@ -1,7 +1,6 @@
-```ts
-export const SCOPE_VALUES = ["app", "user"] as const;
-export const RELATION_DIR_VALUES = ["unidirectional", "bidirectional"] as const;
+# Schema sketch (legacy)
 
+```ts
 export type Scope = (typeof SCOPE_VALUES)[number];
 export type RelationDirection = (typeof RELATION_DIR_VALUES)[number];
 
@@ -190,3 +189,7 @@ Now the second part, the interesting part. It's something like anki. But anki is
 # Important
 
 - There is no connection between words and usecases for now as the only reason of its separation is specifying their role in the context (e.g. "answer" is used as a noun in a context "The answer is 42"). If there are different things to consider that can affect my descision of removing word entity, please, tell me about.
+
+```
+
+```

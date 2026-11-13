@@ -11,6 +11,7 @@ export class Association {
     readonly contentRef: string,
     readonly sortOrder: number,
     readonly createdAt: Date,
+    readonly hiddenFromPractice: boolean,
   ) {}
 
   static fromDto(dto: AssociationDto): Association {
@@ -20,6 +21,7 @@ export class Association {
       dto.contentRef,
       dto.sortOrder,
       new Date(dto.createdAt),
+      dto.hiddenFromPractice,
     );
   }
 
@@ -30,16 +32,50 @@ export class Association {
       text,
       sortOrder,
       new Date(),
+      false,
     );
   }
 
   static kindStub(caseId: string, kind: AssociationKind, sortOrder: number): Association {
+    return Association.sessionCue(caseId, kind, `stub:${kind}`, sortOrder);
+  }
+
+  static sessionCue(
+    caseId: string,
+    kind: AssociationKind,
+    contentRef: string,
+    sortOrder: number,
+    hiddenFromPractice = false,
+  ): Association {
     return new Association(
       `${caseId}-assoc-${crypto.randomUUID()}`,
       kind,
-      `stub:${kind}`,
+      contentRef,
       sortOrder,
       new Date(),
+      hiddenFromPractice,
+    );
+  }
+
+  withContentRef(contentRef: string): Association {
+    return new Association(
+      this.id,
+      this.kind,
+      contentRef,
+      this.sortOrder,
+      this.createdAt,
+      this.hiddenFromPractice,
+    );
+  }
+
+  withHiddenFromPractice(hiddenFromPractice: boolean): Association {
+    return new Association(
+      this.id,
+      this.kind,
+      this.contentRef,
+      this.sortOrder,
+      this.createdAt,
+      hiddenFromPractice,
     );
   }
 }
