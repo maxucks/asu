@@ -98,3 +98,4 @@ Visit [http://127.0.0.1:3000](http://127.0.0.1:3000).
 | UI loads, network errors to API | `NEXT_PUBLIC_ASU_API_URL` must be reachable **from the user's browser**, not `http://api:3001` |
 | Empty queue / 404 | API logs: `docker compose logs api`; re-seed: `docker compose exec api bun run db:seed` |
 | Port in use | Set `WEB_PORT` / `API_PORT` in `.env` |
+| `Unknown lockfile version` on build | Docker uses `oven/bun:1.4-alpine`; pull latest repo / rebuild. Do not use `oven/bun:1.3` images with current `bun.lock`. |

@@ -1,4 +1,5 @@
-FROM oven/bun:1.3-alpine
+# Match repo bun.lock (lockfileVersion 2); 1.3.x images cannot parse it.
+FROM oven/bun:1.4-alpine
 WORKDIR /app
 
 COPY package.json bun.lock ./
