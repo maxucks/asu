@@ -1,7 +1,7 @@
 import { useState } from "react"
-import { ASSOCIATION_ADD_MENU, type AssociationAddAction } from "@/practice/practice_association"
+import { ASSOCIATION_ADD_MENU, type AssociationAddAction } from "@/practice/practice_utils"
 
-export type { AssociationAddAction } from "@/practice/practice_association"
+export type { AssociationAddAction } from "@/practice/practice_utils"
 
 type AddAssociationDropdownUiProps = {
   readonly disabled?: boolean

@@ -1,4 +1,4 @@
-import type { AssociationKind } from "@asu/contracts"
+import type { AssociationKind } from "@/core/data_sources/http_case_data_source"
 import type { PracticeError } from "@/practice/practice_errors"
 import { Association, type PracticeAssociation, type PracticeCard } from "@/practice/practice_model"
 
@@ -93,14 +93,32 @@ export function createPracticeSessionViewStateWithReplacedCard(
   ready: PracticeSessionReadyViewState,
   card: PracticeCard,
 ): PracticeSessionReadyViewState {
-  const cards = ready.cards.map((entry, index) => (index === ready.cardIndex ? card : entry))
+  const cards = ready.cards.map((entry) => (entry.id === card.id ? card : entry))
+  const cardIndex = cards.findIndex((entry) => entry.id === ready.cards[ready.cardIndex]?.id)
   return createPracticeSessionViewStateReady(
     cards,
-    ready.cardIndex,
+    cardIndex >= 0 ? cardIndex : ready.cardIndex,
     ready.phase,
     ready.sessionAssociations,
     ready.revealedHiddenAssociationIds,
   )
+}
+
+export function createPracticeSessionViewStateAfterVocabularyReload(
+  ready: PracticeSessionReadyViewState,
+  cards: readonly PracticeCard[],
+): PracticeSessionViewState {
+  if (cards.length === 0) {
+    return createPracticeSessionViewStateFinished()
+  }
+
+  const activeId = ready.cards[ready.cardIndex]?.id
+  let cardIndex = activeId ? cards.findIndex((entry) => entry.id === activeId) : 0
+  if (cardIndex < 0) {
+    cardIndex = Math.min(ready.cardIndex, cards.length - 1)
+  }
+
+  return createPracticeSessionViewStateReady(cards, cardIndex, "front")
 }
 
 export function createPracticeSessionViewStateWithToggledRevealedHidden(

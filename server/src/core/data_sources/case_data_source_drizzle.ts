@@ -1,5 +1,25 @@
-import type { AssociationDto, AssociationKind, CaseDto } from "@asu/contracts"
 import { asc, eq } from "drizzle-orm"
+
+export const AssociationKinds = ["text", "image", "audio", "sketch", "video"] as const
+
+export type AssociationKind = (typeof AssociationKinds)[number]
+
+export type AssociationDto = {
+  readonly id: string
+  readonly kind: AssociationKind
+  readonly contentRef: string
+  readonly sortOrder: number
+  readonly createdAt: string
+  readonly hiddenFromPractice: boolean
+}
+
+export type CaseDto = {
+  readonly id: string
+  readonly languageName: string
+  readonly lemmaText: string
+  readonly meaning: string | null
+  readonly associations: readonly AssociationDto[]
+}
 import { db } from "@/core/db"
 import { associations, cases, languages } from "@/db/schema"
 function mapAssociationRow(row: typeof associations.$inferSelect): AssociationDto {
@@ -46,7 +66,58 @@ async function loadCaseDto(caseId: string): Promise<CaseDto> {
   }
 }
 
+const DEFAULT_LANGUAGE_ID = "lang-english"
+
 export class DrizzleCaseDataSource {
+  async listAllCaseDtos(): Promise<readonly CaseDto[]> {
+    const rows = await db
+      .select({ id: cases.id })
+      .from(cases)
+      .orderBy(asc(cases.lemmaText))
+
+    const loaded: CaseDto[] = []
+    for (const row of rows) {
+      loaded.push(await loadCaseDto(row.id))
+    }
+    return loaded
+  }
+
+  async createCaseDto(lemmaText: string, meaning: string | null): Promise<CaseDto> {
+    const id = `case-${crypto.randomUUID()}`
+    await db.insert(cases).values({
+      id,
+      languageId: DEFAULT_LANGUAGE_ID,
+      lemmaText,
+      meaning,
+    })
+    return loadCaseDto(id)
+  }
+
+  async updateCaseDto(
+    caseId: string,
+    patch: { readonly lemmaText?: string; readonly meaning?: string | null },
+  ): Promise<CaseDto> {
+    const updates: { lemmaText?: string; meaning?: string | null } = {}
+    if (patch.lemmaText !== undefined) updates.lemmaText = patch.lemmaText
+    if (patch.meaning !== undefined) updates.meaning = patch.meaning
+
+    if (Object.keys(updates).length > 0) {
+      const updated = await db.update(cases).set(updates).where(eq(cases.id, caseId)).returning({ id: cases.id })
+      if (updated.length === 0) {
+        throw new Error(`Record not found: ${caseId}`)
+      }
+    }
+
+    return loadCaseDto(caseId)
+  }
+
+  async deleteCaseDto(caseId: string): Promise<void> {
+    const deleted = await db.delete(cases).where(eq(cases.id, caseId)).returning({ id: cases.id })
+    if (deleted.length === 0) {
+      throw new Error(`Record not found: ${caseId}`)
+    }
+  }
+
   async getCaseDtoById(caseId: string): Promise<CaseDto> {
     return loadCaseDto(caseId)
   }

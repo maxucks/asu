@@ -2,12 +2,33 @@ import { err, ok } from "@/core/app_errors"
 import type { Result } from "@/core/app_errors"
 import { DrizzleCaseDataSource } from "@/core/data_sources/case_data_source_drizzle"
 import { DrizzleStudyRecordDataSource } from "@/core/data_sources/study_record_data_source_drizzle"
-import type { AssociationDto, CaseDto, PracticeCardDto, PracticeQueueDto } from "@asu/contracts"
+import type {
+  AssociationDto,
+  CaseDto,
+} from "@/core/data_sources/case_data_source_drizzle"
+
+export type PracticeCardDto = {
+  readonly id: string
+  readonly languageName: string
+  readonly lemmaText: string
+  readonly meaning: string | null
+  readonly associations: readonly AssociationDto[]
+}
+
+export type PracticeQueueDto = {
+  readonly cards: readonly PracticeCardDto[]
+}
+
+export const PracticeGrades = ["hard", "medium", "easy"] as const
+
+export type PracticeGradeDto = (typeof PracticeGrades)[number]
+
 import {
   practiceAssociationErrorFromThrown,
   PracticeErrAssociationNotOnCard,
   PracticeErrAssociationWrongKind,
   PracticeErrQueueEmpty,
+  practiceCardNotFoundError,
   practiceQueueErrorFromThrown,
   type PracticeError,
 } from "@/practice/practice_errors"
@@ -143,22 +164,65 @@ export class PracticeRepository {
 
   async getQueue(): Promise<Result<PracticeQueueDto, PracticeError>> {
     try {
-      const dueRecords = await this.studyRecordDataSource.listDueStudyRecordDtos()
-
-      if (dueRecords.length === 0) {
+      const allCases = await this.caseDataSource.listAllCaseDtos()
+      if (allCases.length === 0) {
         return err(PracticeErrQueueEmpty)
       }
 
-      const cards: PracticeCardDto[] = []
-      for (const record of dueRecords) {
-        const caseDto = await this.caseDataSource.getCaseDtoById(record.caseId)
-        cards.push(PracticeRepository.caseDtoToPracticeCard(caseDto))
-      }
-
+      const shuffled = PracticeRepository.shuffle([...allCases])
+      const cards = shuffled.map((caseDto) => PracticeRepository.caseDtoToPracticeCard(caseDto))
       return ok({ cards })
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown))
     }
+  }
+
+  async createCase(
+    lemmaText: string,
+    meaning: string | null,
+  ): Promise<Result<PracticeCardDto, PracticeError>> {
+    try {
+      const caseDto = await this.caseDataSource.createCaseDto(lemmaText, meaning)
+      return ok(PracticeRepository.caseDtoToPracticeCard(caseDto))
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
+  async updateCase(
+    caseId: string,
+    patch: { readonly lemmaText?: string; readonly meaning?: string | null },
+  ): Promise<Result<PracticeCardDto, PracticeError>> {
+    try {
+      const caseDto = await this.caseDataSource.updateCaseDto(caseId, patch)
+      return ok(PracticeRepository.caseDtoToPracticeCard(caseDto))
+    } catch (thrown) {
+      if (thrown instanceof Error && thrown.message.startsWith("Record not found")) {
+        return err(practiceCardNotFoundError(thrown.message))
+      }
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
+  async deleteCase(caseId: string): Promise<Result<void, PracticeError>> {
+    try {
+      await this.caseDataSource.deleteCaseDto(caseId)
+      return ok(undefined)
+    } catch (thrown) {
+      if (thrown instanceof Error && thrown.message.startsWith("Record not found")) {
+        return err(practiceCardNotFoundError(thrown.message))
+      }
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
+  private static shuffle<T>(items: T[]): T[] {
+    const copy = [...items]
+    for (let index = copy.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1))
+      ;[copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]]
+    }
+    return copy
   }
 
   private static caseDtoToPracticeCard(caseDto: CaseDto): PracticeCardDto {

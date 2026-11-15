@@ -31,7 +31,7 @@ Grades: hard / medium / easy. Status: new / learning / repeating.
 ## Code rules (quick)
 
 - Craft: [CRAFT.md](../../../docs/CRAFT.md) (code is art).
-- `snake_case` filenames; provider wires `core/data_sources` → repository → UI (mocks or `http_*_data_source.ts`).
+- `snake_case` filenames; `app/page.tsx` wires `http_*_data_source.ts` → repository → UI.
 - **Server routes:** Zod in handler glue → repository (no server usecase files for simple routes).
 - **Client:** controller → use cases for validated writes; repository for orchestration only (no trim/URL checks).
 - Data layer throws; repository + use cases return `Result`.

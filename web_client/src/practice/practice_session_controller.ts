@@ -1,15 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import type { AssociationKind } from "@asu/contracts"
-import type { Result } from "@/core/app_errors"
-import type { AssociationComposeMode } from "@/practice/practice_association"
-import { PracticeErrQueueEmpty, type PracticeError } from "@/practice/practice_errors"
+import type { AssociationKind } from "@/core/data_sources/http_case_data_source"
+import { err, type Result } from "@/core/app_errors"
+import {
+  parseAssociationImageUrl,
+  parseAssociationText,
+  type AssociationComposeMode,
+} from "@/practice/practice_utils"
+import {
+  PracticeErrAssociationEmptyText,
+  PracticeErrAssociationInvalidImageUrl,
+  PracticeErrCaseLemmaEmpty,
+  PracticeErrQueueEmpty,
+  type PracticeError,
+} from "@/practice/practice_errors"
 import { PracticeCard } from "@/practice/practice_model"
 import type { PracticeGradeDto, PracticeCardDto } from "@/practice/practice_repository"
 import { PracticeGrades } from "@/practice/practice_repository"
-import * as practiceAssociationUsecases from "@/practice/practice_association_usecases"
+import { parseCaseLemma, parseCaseMeaning } from "@/practice/practice_model"
 import type { PracticeRepository } from "@/practice/practice_repository"
 import {
   createPracticeSessionViewStateAfterGrade,
+  createPracticeSessionViewStateAfterVocabularyReload,
   createPracticeSessionViewStateError,
   createPracticeSessionViewStateLoading,
   createPracticeSessionViewStateReady,
@@ -36,6 +47,8 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
   const [state, setState] = useState<PracticeSessionViewState>(createPracticeSessionViewStateLoading())
   const [savingAssociation, setSavingAssociation] = useState<AssociationComposeMode | null>(null)
   const [deletingAssociationId, setDeletingAssociationId] = useState<string | null>(null)
+  const [vocabularyBusyCaseId, setVocabularyBusyCaseId] = useState<string | "create" | null>(null)
+  const [deletingCaseId, setDeletingCaseId] = useState<string | null>(null)
   const stateRef = useRef(state)
   stateRef.current = state
 
@@ -218,44 +231,132 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
 
   const addTextAssociation = useCallback(
     async (text: string) =>
-      mutateOnCurrentCard("text", (caseId) =>
-        practiceAssociationUsecases.addTextAssociation(practiceRepository, caseId, text),
-      ),
+      mutateOnCurrentCard("text", (caseId) => {
+        const parsed = parseAssociationText(text)
+        if (parsed === null) return Promise.resolve(err(PracticeErrAssociationEmptyText))
+        return practiceRepository.appendTextAssociation(caseId, parsed)
+      }),
     [mutateOnCurrentCard, practiceRepository],
   )
 
   const addImageAssociationFromUrl = useCallback(
     async (url: string) =>
-      mutateOnCurrentCard("image_url", (caseId) =>
-        practiceAssociationUsecases.addImageAssociationFromUrl(practiceRepository, caseId, url),
-      ),
+      mutateOnCurrentCard("image_url", (caseId) => {
+        const parsed = parseAssociationImageUrl(url)
+        if (parsed === null) return Promise.resolve(err(PracticeErrAssociationInvalidImageUrl))
+        return practiceRepository.appendImageAssociation(caseId, parsed)
+      }),
     [mutateOnCurrentCard, practiceRepository],
   )
 
   const updateTextAssociation = useCallback(
     async (associationId: string, text: string) =>
-      mutateOnCurrentCard("text", (caseId) =>
-        practiceAssociationUsecases.updateTextAssociation(
-          practiceRepository,
-          caseId,
-          associationId,
-          text,
-        ),
-      ),
+      mutateOnCurrentCard("text", (caseId) => {
+        const parsed = parseAssociationText(text)
+        if (parsed === null) return Promise.resolve(err(PracticeErrAssociationEmptyText))
+        return practiceRepository.updateTextAssociation(caseId, associationId, parsed)
+      }),
     [mutateOnCurrentCard, practiceRepository],
   )
 
   const updateImageAssociationFromUrl = useCallback(
     async (associationId: string, url: string) =>
-      mutateOnCurrentCard("image_url", (caseId) =>
-        practiceAssociationUsecases.updateImageAssociationFromUrl(
-          practiceRepository,
-          caseId,
-          associationId,
-          url,
-        ),
-      ),
+      mutateOnCurrentCard("image_url", (caseId) => {
+        const parsed = parseAssociationImageUrl(url)
+        if (parsed === null) return Promise.resolve(err(PracticeErrAssociationInvalidImageUrl))
+        return practiceRepository.updateImageAssociation(caseId, associationId, parsed)
+      }),
     [mutateOnCurrentCard, practiceRepository],
+  )
+
+  const reloadQueue = useCallback(async (): Promise<boolean> => {
+    const result = await practiceRepository.getQueue()
+    if (!result.ok) {
+      setState(createPracticeSessionViewStateError(result.error))
+      return false
+    }
+
+    const cards = result.value.cards.map((dto) => PracticeCard.fromDto(dto))
+    if (cards.length === 0) {
+      setState(createPracticeSessionViewStateError(PracticeErrQueueEmpty))
+      return false
+    }
+
+    setState((prev) => {
+      if (!isPracticeSessionReadyViewState(prev)) {
+        return createPracticeSessionViewStateReady(cards)
+      }
+      return createPracticeSessionViewStateAfterVocabularyReload(prev, cards)
+    })
+    return true
+  }, [practiceRepository])
+
+  const createVocabularyCase = useCallback(
+    async (lemma: string, meaning: string): Promise<boolean> => {
+      setVocabularyBusyCaseId("create")
+      const lemmaText = parseCaseLemma(lemma)
+      if (lemmaText === null) {
+        setState(createPracticeSessionViewStateError(PracticeErrCaseLemmaEmpty))
+        setVocabularyBusyCaseId(null)
+        return false
+      }
+      const result = await practiceRepository.createCase(lemmaText, parseCaseMeaning(meaning))
+      if (!result.ok) {
+        setState(createPracticeSessionViewStateError(result.error))
+        setVocabularyBusyCaseId(null)
+        return false
+      }
+      const ok = await reloadQueue()
+      setVocabularyBusyCaseId(null)
+      return ok
+    },
+    [practiceRepository, reloadQueue],
+  )
+
+  const updateVocabularyCase = useCallback(
+    async (caseId: string, lemma: string, meaning: string): Promise<boolean> => {
+      setVocabularyBusyCaseId(caseId)
+      const lemmaText = parseCaseLemma(lemma)
+      if (lemmaText === null) {
+        setState(createPracticeSessionViewStateError(PracticeErrCaseLemmaEmpty))
+        setVocabularyBusyCaseId(null)
+        return false
+      }
+      const result = await practiceRepository.updateCase(caseId, {
+        lemmaText,
+        meaning: parseCaseMeaning(meaning),
+      })
+      if (!result.ok) {
+        setState(createPracticeSessionViewStateError(result.error))
+        setVocabularyBusyCaseId(null)
+        return false
+      }
+
+      const updated = PracticeCard.fromDto(result.value)
+      setState((prev) => {
+        if (!isPracticeSessionReadyViewState(prev)) return prev
+        return createPracticeSessionViewStateWithReplacedCard(prev, updated)
+      })
+      setVocabularyBusyCaseId(null)
+      return true
+    },
+    [practiceRepository],
+  )
+
+  const deleteVocabularyCase = useCallback(
+    async (caseId: string): Promise<boolean> => {
+      setDeletingCaseId(caseId)
+      const result = await practiceRepository.deleteCase(caseId)
+      if (!result.ok) {
+        setState(createPracticeSessionViewStateError(result.error))
+        setDeletingCaseId(null)
+        return false
+      }
+      const ok = await reloadQueue()
+      setDeletingCaseId(null)
+      return ok
+    },
+    [practiceRepository, reloadQueue],
   )
 
   const sessionPhase = isPracticeSessionReadyViewState(state) ? state.phase : null
@@ -278,5 +379,11 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
     deleteAssociation,
     savingAssociation,
     deletingAssociationId,
+    caseBusy: vocabularyBusyCaseId,
+    deletingCaseId,
+    createCase: createVocabularyCase,
+    updateCase: updateVocabularyCase,
+    deleteCase: deleteVocabularyCase,
+    reloadQueue,
   }
 }

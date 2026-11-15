@@ -1,4 +1,4 @@
-import { error, ok } from "@/core/hono_response"
+import { created, error, noContent, ok } from "@/core/hono_response"
 import { parseJsonBody, parseRouteParams } from "@/core/validate_request"
 import { log } from "@/core/logger"
 import { practiceErrorHttpStatus } from "@/practice/practice_errors"
@@ -8,12 +8,57 @@ import {
   practiceAssociationTextBodySchema,
   practiceCaseAssociationParamsSchema,
   practiceCaseIdParamsSchema,
+  practiceCreateCaseBodySchema,
+  practiceUpdateCaseBodySchema,
 } from "@/practice/practice_route_schemas"
 import type { PracticeRepository } from "@/practice/practice_repository"
 import { Hono } from "hono"
 
 export function createPracticeRoutes(repository: PracticeRepository) {
   const routes = new Hono()
+
+  routes.post("/cases", async (c) => {
+    const body = await parseJsonBody(c, practiceCreateCaseBodySchema)
+    if (!body.ok) {
+      return error(c, body.error, practiceErrorHttpStatus(body.error.code))
+    }
+
+    const result = await repository.createCase(body.value.lemmaText, body.value.meaning)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return created(c, result.value)
+  })
+
+  routes.patch("/cases/:caseId", async (c) => {
+    const params = parseRouteParams(c.req.param(), practiceCaseIdParamsSchema)
+    if (!params.ok) {
+      return error(c, params.error, practiceErrorHttpStatus(params.error.code))
+    }
+    const body = await parseJsonBody(c, practiceUpdateCaseBodySchema)
+    if (!body.ok) {
+      return error(c, body.error, practiceErrorHttpStatus(body.error.code))
+    }
+
+    const result = await repository.updateCase(params.value.caseId, body.value)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return ok(c, result.value)
+  })
+
+  routes.delete("/cases/:caseId", async (c) => {
+    const params = parseRouteParams(c.req.param(), practiceCaseIdParamsSchema)
+    if (!params.ok) {
+      return error(c, params.error, practiceErrorHttpStatus(params.error.code))
+    }
+
+    const result = await repository.deleteCase(params.value.caseId)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return noContent(c)
+  })
 
   routes.get("/queue", async (c) => {
     const result = await repository.getQueue()

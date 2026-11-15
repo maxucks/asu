@@ -1,11 +1,11 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   type AssociationAddAction,
   type AssociationEditorState,
   associationComposeModeForEdit,
   associationKindLabel,
   isEditableAssociation,
-} from "@/practice/practice_association"
+} from "@/practice/practice_utils"
 import type { PracticeAssociation } from "@/practice/practice_model"
 import { usePracticeSessionController } from "@/practice/practice_session_controller"
 import { isAssociationContentVisible, isAssociationOnCard } from "@/practice/practice_session_view_state"
@@ -15,13 +15,14 @@ import { AddImageUrlAssociationUi } from "@/practice/ui/add_image_url_associatio
 import { AddTextAssociationUi } from "@/practice/ui/add_text_association_ui"
 import { AssociationUi } from "@/practice/ui/associations/association_ui"
 import { ConfirmDialogUi } from "@/practice/ui/confirm_dialog_ui"
+import { CreateCaseModalUi } from "@/practice/ui/create_case_modal_ui"
 import { GradeButtonsUi } from "@/practice/ui/grade_buttons_ui"
 
 type PracticeSessionScreenUiProps = {
   readonly practiceRepository: PracticeRepository
 }
 
-type PendingDelete = {
+type PendingAssociationDelete = {
   readonly associationId: string
   readonly label: string
 }
@@ -29,10 +30,22 @@ type PendingDelete = {
 export function PracticeSessionScreenUi({ practiceRepository }: PracticeSessionScreenUiProps) {
   const session = usePracticeSessionController(practiceRepository)
   const [editor, setEditor] = useState<AssociationEditorState | null>(null)
-  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
+  const [pendingAssociationDelete, setPendingAssociationDelete] = useState<PendingAssociationDelete | null>(null)
+  const [pendingCaseDelete, setPendingCaseDelete] = useState(false)
+  const [createCaseOpen, setCreateCaseOpen] = useState(false)
+  const [editingCase, setEditingCase] = useState(false)
+  const [lemmaDraft, setLemmaDraft] = useState("")
+  const [meaningDraft, setMeaningDraft] = useState("")
 
   const saving = session.savingAssociation !== null
   const adding = editor?.intent === "add" && (editor.mode === "text" || editor.mode === "image_url")
+  const caseSaving = session.caseBusy !== null && session.caseBusy !== "create"
+
+  useEffect(() => {
+    if (!session.currentCard || editingCase) return
+    setLemmaDraft(session.currentCard.lemmaText)
+    setMeaningDraft(session.currentCard.meaning ?? "")
+  }, [session.currentCard, editingCase])
 
   function handlePickAssociation(action: AssociationAddAction) {
     switch (action.action) {
@@ -81,14 +94,42 @@ export function PracticeSessionScreenUi({ practiceRepository }: PracticeSessionS
     return associationKindLabel(association.kind)
   }
 
-  async function confirmDelete() {
-    if (!pendingDelete) return
-    const ok = await session.deleteAssociation(pendingDelete.associationId)
+  async function confirmAssociationDelete() {
+    if (!pendingAssociationDelete) return
+    const ok = await session.deleteAssociation(pendingAssociationDelete.associationId)
     if (ok) {
-      setPendingDelete(null)
+      setPendingAssociationDelete(null)
       setEditor((current) =>
-        current?.intent === "edit" && current.associationId === pendingDelete.associationId ? null : current,
+        current?.intent === "edit" && current.associationId === pendingAssociationDelete.associationId
+          ? null
+          : current,
       )
+    }
+  }
+
+  function startCaseEdit() {
+    const card = session.currentCard
+    if (!card) return
+    setLemmaDraft(card.lemmaText)
+    setMeaningDraft(card.meaning ?? "")
+    setEditingCase(true)
+    setEditor(null)
+  }
+
+  async function saveCaseEdit() {
+    const card = session.currentCard
+    if (!card) return
+    const ok = await session.updateCase(card.id, lemmaDraft, meaningDraft)
+    if (ok) setEditingCase(false)
+  }
+
+  async function confirmCaseDelete() {
+    const card = session.currentCard
+    if (!card) return
+    const ok = await session.deleteCase(card.id)
+    if (ok) {
+      setPendingCaseDelete(false)
+      setEditingCase(false)
     }
   }
 
@@ -113,7 +154,7 @@ export function PracticeSessionScreenUi({ practiceRepository }: PracticeSessionS
     return (
       <main className="mx-auto flex min-h-dvh max-w-lg flex-col items-center justify-center gap-4 p-6 text-center">
         <h1 className="text-2xl font-semibold text-slate-100">Queue complete</h1>
-        <p className="text-slate-400">Mock session ended — reload to try again.</p>
+        <p className="text-slate-400">Session ended — reload to practice again.</p>
       </main>
     )
   }
@@ -123,10 +164,10 @@ export function PracticeSessionScreenUi({ practiceRepository }: PracticeSessionS
   const onFront = phase === "front"
   const currentCard = session.currentCard
   const editingAssociationId = editor?.intent === "edit" ? editor.associationId : null
-  const managing = onFront && (editor === null || editor.intent === "edit") && !adding
+  const managing = onFront && (editor === null || editor.intent === "edit") && !adding && !editingCase
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-6 p-6 pb-10">
+    <main className="relative mx-auto flex min-h-dvh max-w-lg flex-col gap-6 p-6 pb-10">
       <header className="flex items-center justify-between text-sm text-slate-400">
         <span>{currentCard?.languageName}</span>
         <span>{progress}</span>
@@ -134,15 +175,54 @@ export function PracticeSessionScreenUi({ practiceRepository }: PracticeSessionS
 
       <section className="flex flex-1 flex-col gap-4 rounded-2xl border border-slate-700/80 bg-card p-5 shadow-lg">
         <div className="flex items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0 flex-1">
             <h1 className="text-lg font-medium text-slate-200">{onFront ? "What's the word?" : "Answer"}</h1>
             <p className="mt-1 text-sm text-slate-500">
               {onFront ? "Use the associations below, then reveal the answer." : "How well did you remember it?"}
             </p>
           </div>
-          {onFront && editor === null ? (
-            <AddAssociationDropdownUi disabled={saving} onPick={handlePickAssociation} />
-          ) : null}
+          <div className="flex shrink-0 items-center gap-2">
+            {editingCase ? (
+              <>
+                <button
+                  type="button"
+                  disabled={caseSaving}
+                  onClick={() => setEditingCase(false)}
+                  className="text-sm text-slate-400 hover:text-slate-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={caseSaving}
+                  onClick={() => void saveCaseEdit()}
+                  className="text-sm font-medium text-accent"
+                >
+                  {caseSaving ? "Saving…" : "Save"}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={startCaseEdit}
+                  className="text-sm text-slate-400 hover:text-slate-200"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPendingCaseDelete(true)}
+                  className="text-sm text-danger hover:brightness-110"
+                >
+                  Delete
+                </button>
+              </>
+            )}
+            {onFront && editor === null && !editingCase ? (
+              <AddAssociationDropdownUi disabled={saving} onPick={handlePickAssociation} />
+            ) : null}
+          </div>
         </div>
 
         {onFront && editor?.intent === "add" && editor.mode === "text" ? (
@@ -161,10 +241,30 @@ export function PracticeSessionScreenUi({ practiceRepository }: PracticeSessionS
           />
         ) : null}
 
-        {currentCard?.meaning ? (
-          <p className="text-sm leading-relaxed text-slate-300">
-            {currentCard.meaning}
-          </p>
+        {editingCase ? (
+          <div className="flex flex-col gap-3 rounded-xl border border-slate-600/80 bg-slate-900/40 p-3">
+            <label className="flex flex-col gap-1 text-xs text-slate-500">
+              Lemma
+              <input
+                value={lemmaDraft}
+                disabled={caseSaving}
+                onChange={(event) => setLemmaDraft(event.target.value)}
+                className="rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-500">
+              Description
+              <textarea
+                value={meaningDraft}
+                disabled={caseSaving}
+                rows={3}
+                onChange={(event) => setMeaningDraft(event.target.value)}
+                className="rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              />
+            </label>
+          </div>
+        ) : currentCard?.meaning ? (
+          <p className="text-sm leading-relaxed text-slate-300">{currentCard.meaning}</p>
         ) : null}
 
         <h2 className="sr-only">Associations</h2>
@@ -224,7 +324,7 @@ export function PracticeSessionScreenUi({ practiceRepository }: PracticeSessionS
                   onHide={() => void session.setAssociationHidden(association.id, true)}
                   onUnhide={() => void session.setAssociationHidden(association.id, false)}
                   onDelete={() =>
-                    setPendingDelete({
+                    setPendingAssociationDelete({
                       associationId: association.id,
                       label: deleteLabel(association),
                     })
@@ -236,11 +336,9 @@ export function PracticeSessionScreenUi({ practiceRepository }: PracticeSessionS
           })}
         </ul>
 
-        {!onFront && currentCard ? (
+        {!onFront && currentCard && !editingCase ? (
           <div className="rounded-xl border border-accent-soft bg-accent-soft/40 px-4 py-4">
-            <p className="text-2xl font-semibold tracking-tight text-white">
-              {currentCard.lemmaText}
-            </p>
+            <p className="text-2xl font-semibold tracking-tight text-white">{currentCard.lemmaText}</p>
           </div>
         ) : null}
       </section>
@@ -259,18 +357,56 @@ export function PracticeSessionScreenUi({ practiceRepository }: PracticeSessionS
         )}
       </footer>
 
+      <button
+        type="button"
+        aria-label="Add vocabulary entry"
+        onClick={() => setCreateCaseOpen(true)}
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl font-light text-white shadow-lg transition hover:brightness-110"
+      >
+        +
+      </button>
+
+      <CreateCaseModalUi
+        open={createCaseOpen}
+        saving={session.caseBusy === "create"}
+        onCancel={() => setCreateCaseOpen(false)}
+        onCreate={(lemma, meaning) => {
+          void (async () => {
+            const ok = await session.createCase(lemma, meaning)
+            if (ok) setCreateCaseOpen(false)
+          })()
+        }}
+      />
+
       <ConfirmDialogUi
-        open={pendingDelete !== null}
+        open={pendingAssociationDelete !== null}
         title="Delete association?"
         message={
-          pendingDelete
-            ? `Remove this ${pendingDelete.label.toLowerCase()} cue from the card? This cannot be undone.`
+          pendingAssociationDelete
+            ? `Remove this ${pendingAssociationDelete.label.toLowerCase()} cue from the card? This cannot be undone.`
             : ""
         }
         confirmLabel="Delete"
-        confirming={pendingDelete !== null && session.deletingAssociationId === pendingDelete.associationId}
-        onCancel={() => setPendingDelete(null)}
-        onConfirm={() => void confirmDelete()}
+        confirming={
+          pendingAssociationDelete !== null &&
+          session.deletingAssociationId === pendingAssociationDelete.associationId
+        }
+        onCancel={() => setPendingAssociationDelete(null)}
+        onConfirm={() => void confirmAssociationDelete()}
+      />
+
+      <ConfirmDialogUi
+        open={pendingCaseDelete}
+        title="Delete this entry?"
+        message={
+          currentCard
+            ? `Remove “${currentCard.lemmaText}” and all its associations from your vocabulary?`
+            : ""
+        }
+        confirmLabel="Delete"
+        confirming={currentCard !== null && session.deletingCaseId === currentCard.id}
+        onCancel={() => setPendingCaseDelete(false)}
+        onConfirm={() => void confirmCaseDelete()}
       />
     </main>
   )

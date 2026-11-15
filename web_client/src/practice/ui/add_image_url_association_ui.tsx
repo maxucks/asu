@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { normalizeImageAssociationUrl } from "@/practice/practice_association"
+import { normalizeImageAssociationUrl } from "@/practice/practice_utils"
 import {
   AddAssociationComposeShellUi,
   associationComposeFieldClassName,

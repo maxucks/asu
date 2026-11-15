@@ -1,4 +1,4 @@
-import { associationKindLabel } from "@/practice/practice_association"
+import { associationKindLabel } from "@/practice/practice_utils"
 import type { PracticeAssociation } from "@/practice/practice_model"
 
 type AssociationHiddenPeekUiProps = {

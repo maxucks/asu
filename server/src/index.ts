@@ -13,12 +13,20 @@ const repository = new PracticeRepository(
   new DrizzleCaseDataSource(),
 )
 
+function corsOrigins(): string[] {
+  const fromEnv = process.env.CORS_ORIGINS?.trim()
+  if (fromEnv) {
+    return fromEnv.split(",").map((origin) => origin.trim()).filter((origin) => origin.length > 0)
+  }
+  return ["http://localhost:3000", "http://127.0.0.1:3000"]
+}
+
 const app = new Hono()
 
 app.use(
   "*",
   cors({
-    origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
+    origin: corsOrigins(),
   }),
 )
 
@@ -27,11 +35,12 @@ app.get("/health", (c) => ok(c, { status: "ok" }))
 app.route("/api/practice", createPracticeRoutes(repository))
 
 const port = Number(process.env.PORT ?? 3001)
+const hostname = process.env.HOST ?? "127.0.0.1"
 
-log.info("server starting", { port, database: databasePath() })
+log.info("server starting", { hostname, port, database: databasePath() })
 
 const server = Bun.serve({
-  hostname: "127.0.0.1",
+  hostname,
   port,
   fetch: app.fetch,
 })

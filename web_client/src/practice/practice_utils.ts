@@ -1,10 +1,31 @@
-import { AssociationKinds, type AssociationKind } from "@asu/contracts"
-import { normalizeImageAssociationUrl } from "@asu/contracts"
+/** Practice feature helpers: parsers, association UI rules, menus (no I/O). */
+
+import { AssociationKinds, type AssociationKind } from "@/core/data_sources/http_case_data_source"
 import type { PracticeAssociation } from "@/practice/practice_model"
 
-export { normalizeImageAssociationUrl } from "@asu/contracts"
+export function parseAssociationText(raw: string): string | null {
+  const text = raw.trim()
+  return text.length > 0 ? text : null
+}
 
-/** Image association `contentRef` helpers (no I/O). */
+export function parseAssociationImageUrl(raw: string): string | null {
+  return normalizeImageAssociationUrl(raw)
+}
+
+export function normalizeImageAssociationUrl(raw: string): string | null {
+  const trimmed = raw.trim()
+  if (trimmed.length === 0 || trimmed.length > 2048) return null
+
+  let parsed: URL
+  try {
+    parsed = new URL(trimmed)
+  } catch {
+    return null
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null
+  return parsed.toString()
+}
 
 export const IMAGE_ASSOCIATION_STUB_REFS = {
   library: "stub:image-library",

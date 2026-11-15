@@ -1,14 +1,15 @@
 import { err, ok } from "@/core/app_errors";
 import type { Result } from "@/core/app_errors";
-import type { AssociationDto, CaseDto } from "@asu/contracts";
-import type { HttpCaseDataSource } from "@/core/data_sources/http_case_data_source";
-import type { HttpStudyRecordDataSource } from "@/core/data_sources/http_study_record_data_source";
 import type {
+  AssociationDto,
+  CaseDto,
   PracticeCardDto,
   PracticeQueueDto,
-} from "@asu/contracts";
+} from "@/core/data_sources/http_case_data_source";
+import type { HttpCaseDataSource } from "@/core/data_sources/http_case_data_source";
 import {
   practiceAssociationErrorFromThrown,
+  practiceCardNotFoundError,
   PracticeErrAssociationNotOnCard,
   PracticeErrAssociationWrongKind,
   PracticeErrQueueEmpty,
@@ -16,14 +17,14 @@ import {
   type PracticeError,
 } from "@/practice/practice_errors";
 
-export type { PracticeCardDto, PracticeGradeDto, PracticeQueueDto } from "@asu/contracts";
-export { PracticeGrades } from "@asu/contracts";
+export type { PracticeCardDto, PracticeQueueDto } from "@/core/data_sources/http_case_data_source";
+
+export const PracticeGrades = ["hard", "medium", "easy"] as const;
+
+export type PracticeGradeDto = (typeof PracticeGrades)[number];
 
 export class PracticeRepository {
-  constructor(
-    private readonly studyRecordDataSource: HttpStudyRecordDataSource,
-    private readonly caseDataSource: HttpCaseDataSource,
-  ) {}
+  constructor(private readonly caseDataSource: HttpCaseDataSource) {}
 
   async appendTextAssociation(
     caseId: string,
@@ -159,20 +160,51 @@ export class PracticeRepository {
 
   async getQueue(): Promise<Result<PracticeQueueDto, PracticeError>> {
     try {
-      const dueRecords = await this.studyRecordDataSource.listDueStudyRecordDtos();
-
-      if (dueRecords.length === 0) {
+      const queue = await this.caseDataSource.fetchPracticeQueue();
+      if (queue.cards.length === 0) {
         return err(PracticeErrQueueEmpty);
       }
-
-      const cards: PracticeCardDto[] = [];
-      for (const record of dueRecords) {
-        const caseDto = await this.caseDataSource.getCaseDtoById(record.caseId);
-        cards.push(PracticeRepository.caseDtoToPracticeCard(caseDto));
-      }
-
-      return ok({ cards });
+      return ok(queue);
     } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
+
+  async createCase(
+    lemmaText: string,
+    meaning: string | null,
+  ): Promise<Result<PracticeCardDto, PracticeError>> {
+    try {
+      const caseDto = await this.caseDataSource.createCaseDto(lemmaText, meaning);
+      return ok(caseDto);
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
+
+  async updateCase(
+    caseId: string,
+    patch: { readonly lemmaText?: string; readonly meaning?: string | null },
+  ): Promise<Result<PracticeCardDto, PracticeError>> {
+    try {
+      const caseDto = await this.caseDataSource.updateCaseDto(caseId, patch);
+      return ok(caseDto);
+    } catch (thrown) {
+      if (thrown instanceof Error && thrown.message.startsWith("Record not found")) {
+        return err(practiceCardNotFoundError(thrown.message));
+      }
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
+
+  async deleteCase(caseId: string): Promise<Result<void, PracticeError>> {
+    try {
+      await this.caseDataSource.deleteCaseDto(caseId);
+      return ok(undefined);
+    } catch (thrown) {
+      if (thrown instanceof Error && thrown.message.startsWith("Record not found")) {
+        return err(practiceCardNotFoundError(thrown.message));
+      }
       return err(practiceQueueErrorFromThrown(thrown));
     }
   }

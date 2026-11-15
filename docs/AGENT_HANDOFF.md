@@ -10,22 +10,21 @@ Associative vocabulary app (Anki-like practice + user-defined associations). Dom
 
 | Package | Role |
 |---------|------|
-| `packages/contracts/` | Shared DTOs, parsers, error codes/messages, `dev-seed` |
 | `server/` | Bun + Hono API, Drizzle + SQLite (`server/data/asu.sqlite`) |
 | `web_client/` | Next 15 app, Tailwind |
 
-No root `package.json` — install deps per package (`server/`, `web_client/`, `packages/contracts/`). `@asu/contracts` is linked via `file:../packages/contracts`. Copy `server/.env.example` → `server/.env` once.
+No root `package.json` — install deps per package (`server/`, `web_client/`). Response DTO types live next to data sources and `practice_repository`; dev seed is `server/src/db/seed.ts` only. Copy `server/.env.example` → `server/.env` once.
 
-**Server dev:** from `server/`, `bun run dev` (`bun --cwd .. --hot --env-file server/.env server/src/index.ts` so monorepo root is cwd and `@asu/contracts` is hot-watched).
+**Server dev:** from `server/`, `bun run dev`.
 
 ## Architecture (do not violate)
 
 1. **No new layers without owner approval** — no feature `*_api_client` between HTTP and data sources; no server `*_usecase.ts` for one-off routes.
-2. **Validation in glue** — server: Zod in `*_route_schemas.ts` + handlers in `*_routes.ts`. Client: `practice_association_usecases.ts` + controller. Parsers in `@asu/contracts` (`parsePracticeAssociationText`, etc.).
+2. **Validation in glue** — server: Zod in `*_route_schemas.ts` + handlers in `*_routes.ts`. Client: **controller** parses → repository (parsers in `practice_utils.ts` / `practice_model.ts`). No `*_usecase.ts` that only wraps one validate → repo call.
 3. **Repository** — orchestration + domain invariants only; **no** input trim/URL checks; **no** validate-then-`private` wrapper methods.
 4. **Data sources** — concrete classes, throw on failure; separate methods per kind for writes (e.g. `updateTextAssociationContentRefDto` / `updateImageAssociationContentRefDto`).
 5. **HTTP responses (server)** — only `core/hono_response.ts`: `data`, `ok`, `created`, `noContent`, `error`, `badRequest`, `notFound`, `internalError`. Call **inline** in routes — **no** route-local `respondXError` helpers.
-6. **Client HTTP** — `http_*_data_source.ts` + shared `queueCardsById` map in provider; `core/utils/request_json.ts`.
+6. **Client HTTP** — `http_*_data_source.ts` + shared `queueCardsById` map in `app/page.tsx`; `core/utils/request_json.ts`.
 
 ## Naming conventions (constants)
 
@@ -38,7 +37,7 @@ No root `package.json` — install deps per package (`server/`, `web_client/`, `
 
 ### Client flow
 
-`practice_provider` → `PracticeSessionScreenUi` → `practice_session_controller` → use cases (mutations) / repository → `HttpStudyRecordDataSource` + `HttpCaseDataSource` → API.
+`app/page.tsx` → `PracticeSessionScreenUi` → `practice_session_controller` → repository → `HttpCaseDataSource` → API.
 
 `NEXT_PUBLIC_ASU_API_URL` default `http://127.0.0.1:3001`.
 
@@ -55,17 +54,17 @@ No root `package.json` — install deps per package (`server/`, `web_client/`, `
 ### Not done / known gaps
 
 - **Grading (SRS)** is client-only; no server endpoint for `submitGrade`.
-- Mocks remain in repo but provider uses HTTP sources.
-- Seed: `@asu/contracts/dev-seed` (`SEED_CASES` with English vocab, `meaning` field).
+- Client: `http_*_data_source.ts` only (run the API server for practice data).
+- Seed: `server/src/db/seed.ts` (`SEED_CASES` with English vocab, `meaning` field).
 
 ## Key files
 
 | Area | Paths |
 |------|--------|
-| Contracts | `practice_error_codes.ts`, `practice_error_messages.ts`, `practice_association_input.ts` |
 | Server routes | `server/src/practice/practice_routes.ts`, `practice_route_schemas.ts` |
 | Server HTTP | `server/src/core/hono_response.ts`, `validate_request.ts` |
-| Client use cases | `web_client/src/practice/practice_association_usecases.ts` |
+| Client glue | `web_client/src/practice/practice_session_controller.ts` (parse → repo) |
+| Client feature utils | `practice_utils.ts`, `practice_model.ts` |
 | Errors | `*/practice/practice_errors.ts` + prebuilt `PracticeErr*` constants |
 
 ## Anti-patterns (recently corrected — do not reintroduce)

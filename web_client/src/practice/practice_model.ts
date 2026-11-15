@@ -1,4 +1,4 @@
-import type { AssociationDto, AssociationKind } from "@asu/contracts"
+import type { AssociationDto, AssociationKind } from "@/core/data_sources/http_case_data_source"
 import type { PracticeCardDto } from "@/practice/practice_repository"
 
 /** Instance shape for UI, selectors, and type-only imports. */
@@ -84,4 +84,14 @@ export class PracticeCard {
       dto.associations.map((item) => Association.fromDto(item)),
     )
   }
+}
+
+export function parseCaseLemma(raw: string): string | null {
+  const text = raw.trim()
+  return text.length > 0 ? text : null
+}
+
+export function parseCaseMeaning(raw: string): string | null {
+  const text = raw.trim()
+  return text.length > 0 ? text : null
 }

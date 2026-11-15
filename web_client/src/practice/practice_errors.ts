@@ -1,11 +1,25 @@
 import { AppError } from "@/core/app_errors";
-import {
-  PracticeErrorCodes,
-  PracticeErrorMessages,
-  type PracticeErrorCode,
-} from "@asu/contracts";
 
-export type { PracticeErrorCode } from "@asu/contracts";
+export const PracticeErrorCodes = {
+  NoCards: "practice_no_cards",
+  CardNotFound: "practice_card_not_found",
+  InvalidGrade: "practice_invalid_grade",
+  AssociationSaveFailed: "practice_association_save_failed",
+  AssociationNotFound: "practice_association_not_found",
+} as const;
+
+export type PracticeErrorCode = (typeof PracticeErrorCodes)[keyof typeof PracticeErrorCodes];
+
+export const PracticeErrorMessages = {
+  AssociationEmptyText: "Association text cannot be empty.",
+  AssociationInvalidImageUrl: "Enter a valid http or https image URL.",
+  AssociationWrongKind: "This association cannot be edited that way.",
+  AssociationNotOnCard: "That association is no longer on this card.",
+  QueueEmpty: "Nothing to review in the queue.",
+  AssociationSaveFailed: "Could not save association.",
+  PracticeDataFailed: "Practice data failed.",
+  CaseLemmaEmpty: "Word / lemma cannot be empty.",
+} as const;
 
 export class PracticeError extends AppError<PracticeErrorCode> {
   constructor(code: PracticeErrorCode, message: string) {
@@ -47,6 +61,11 @@ export const PracticeErrAssociationSaveFailed = new PracticeError(
 export const PracticeErrPracticeDataFailed = new PracticeError(
   PracticeErrorCodes.NoCards,
   PracticeErrorMessages.PracticeDataFailed,
+);
+
+export const PracticeErrCaseLemmaEmpty = new PracticeError(
+  PracticeErrorCodes.AssociationSaveFailed,
+  PracticeErrorMessages.CaseLemmaEmpty,
 );
 
 export function practiceCardNotFoundError(message: string): PracticeError {

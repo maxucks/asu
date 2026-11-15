@@ -1,11 +1,75 @@
-import type { AssociationDto, CaseDto, PracticeCardDto } from "@asu/contracts"
 import { asuApiBaseUrl, requestJson } from "@/core/utils/request_json"
+
+export const AssociationKinds = ["text", "image", "audio", "sketch", "video"] as const
+
+export type AssociationKind = (typeof AssociationKinds)[number]
+
+export type AssociationDto = {
+  readonly id: string
+  readonly kind: AssociationKind
+  readonly contentRef: string
+  readonly sortOrder: number
+  readonly createdAt: string
+  readonly hiddenFromPractice: boolean
+}
+
+/** API `/api/practice` card response body. */
+export type PracticeCardDto = {
+  readonly id: string
+  readonly languageName: string
+  readonly lemmaText: string
+  readonly meaning: string | null
+  readonly associations: readonly AssociationDto[]
+}
+
+export type CaseDto = PracticeCardDto
+
+export type PracticeQueueDto = {
+  readonly cards: readonly PracticeCardDto[]
+}
 
 export class HttpCaseDataSource {
   constructor(
     private readonly queueCardsById: Map<string, PracticeCardDto>,
     private readonly baseUrl: string = asuApiBaseUrl(),
   ) {}
+
+  async fetchPracticeQueue(): Promise<PracticeQueueDto> {
+    const queue = await requestJson<PracticeQueueDto>(this.baseUrl, "GET", "/api/practice/queue")
+    this.queueCardsById.clear()
+    for (const card of queue.cards) {
+      this.queueCardsById.set(card.id, card)
+    }
+    return queue
+  }
+
+  async createCaseDto(lemmaText: string, meaning: string | null): Promise<CaseDto> {
+    return this.postCard("/api/practice/cases", { lemmaText, meaning })
+  }
+
+  async updateCaseDto(
+    caseId: string,
+    patch: { readonly lemmaText?: string; readonly meaning?: string | null },
+  ): Promise<CaseDto> {
+    return this.patchCard(`/api/practice/cases/${caseId}`, { ...patch })
+  }
+
+  async deleteCaseDto(caseId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/practice/cases/${caseId}`, { method: "DELETE" })
+    if (!response.ok) {
+      let message = `Request failed (${response.status})`
+      try {
+        const payload = (await response.json()) as { message?: string }
+        if (typeof payload.message === "string" && payload.message.length > 0) {
+          message = payload.message
+        }
+      } catch {
+        // empty body on some errors
+      }
+      throw new Error(message)
+    }
+    this.queueCardsById.delete(caseId)
+  }
 
   async getCaseDtoById(caseId: string): Promise<CaseDto> {
     const card = this.queueCardsById.get(caseId)

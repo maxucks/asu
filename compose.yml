@@ -1,0 +1,31 @@
+services:
+  api:
+    build: ./server
+    restart: unless-stopped
+    volumes:
+      - asu-sqlite:/data
+    environment:
+      DATABASE_URL: /data/asu.sqlite
+      PORT: 3001
+      HOST: 0.0.0.0
+      CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS to your public app origin(s), comma-separated}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "${API_PORT:-3001}:3001"
+
+  web:
+    build:
+      context: ./web_client
+      args:
+        NEXT_PUBLIC_ASU_API_URL: ${NEXT_PUBLIC_ASU_API_URL:?Set NEXT_PUBLIC_ASU_API_URL to the URL browsers use for the API}
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      - api
+
+volumes:
+  asu-sqlite:

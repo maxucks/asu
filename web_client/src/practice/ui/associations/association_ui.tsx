@@ -3,7 +3,7 @@ import {
   imageAssociationStubLabel,
   isImageAssociationStubRef,
   isImageAssociationUrl,
-} from "@/practice/practice_association"
+} from "@/practice/practice_utils"
 import { AssociationActionsMenuUi } from "@/practice/ui/associations/association_actions_menu_ui"
 import { AssociationHiddenPeekUi } from "@/practice/ui/associations/association_hidden_peek_ui"
 import { AssociationImageUi } from "@/practice/ui/associations/association_image_ui"
