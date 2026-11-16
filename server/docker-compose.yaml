@@ -1,0 +1,26 @@
+services:
+  api:
+    # build: .
+    image: ghcr.io/maxucks/asu:main
+    restart: unless-stopped
+    volumes:
+      - asu-sqlite:/data
+    environment:
+      DATABASE_URL: /data/asu.sqlite
+      PORT: 3001
+      HOST: 0.0.0.0
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "${API_PORT:-3001}:3001"
+    networks:
+      - asu
+
+networks:
+  asu:
+    name: asu
+    driver: bridge
+
+volumes:
+  asu-sqlite:
+    name: asu-sqlite
