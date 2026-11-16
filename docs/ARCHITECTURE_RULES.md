@@ -15,13 +15,14 @@
 
 | Artifact | File pattern | Rules |
 |----------|----------------|-------|
-| UI | `*_ui.tsx` | Render only; controller only |
+| Screen | `components/<subfeature>/*_screen.tsx` | Thin entry; mounts `*ScreenLogic` |
+| Component | `components/<subfeature>/` | Feature-grouped UI; see **Components** |
 | Controller | `*_controller.ts` | Use cases + repo injected; view state via **create\*** factories |
 | View state | `*_view_state.ts` | Union types + transition helpers |
 | Model | `*_model.ts` | Classes, `fromDto`; no I/O |
 | Repository | `*_repository.ts` | Join sources; domain invariants (e.g. association kind); **`Result` + AppError**; **no input sanitization** |
 | Data source | `core/data_sources/*` | Concrete class (no interface); storage API; response DTO types colocated; **throw** |
-| App assembly | `app/page.tsx` | Wire sources → repo → feature UI (avoid extra `*_provider.tsx` wrappers) |
+| App assembly | `app/page.tsx` | Client entry; mount `*Context` → screen (DI in `practice/context/`, not page) |
 | Utils | `core/utils/*` | Small shared helpers (e.g. `request_json`); no domain I/O surface |
 | HTTP response (server) | `core/hono_response.ts` | `data(c, body, 2xx)`, `ok`, `created`, `noContent`, `error(c, appError, status?)`, `badRequest`, `notFound`, `internalError` — not raw `c.json` in routes |
 | Use case (client) | `*_usecase.ts` | Glue when reused or non-trivial; parse/validate → repository; **`Result` + AppError** |
@@ -34,7 +35,7 @@
 
 - **Data sources / clients:** throw on failure; no `Result`.
 - **Repository+:** try/catch → feature `*Error`; expose `Result`.
-- **UI/controller:** consume `Result` only.
+- **Screen/controller:** consume `Result` only.
 
 ## Glue, validation, repository (critical)
 
@@ -56,9 +57,18 @@
 - **Kind-specific writes:** when text and image (or other kinds) use different validation, API paths, or columns, expose **separate** data-source methods (e.g. `updateTextAssociationContentRefDto`, `updateImageAssociationContentRefDto`). Do not use one generic `update*ContentRef` that loads the row and branches on `association.kind` — keep that check in the repository only, then call the matching source method.
 - **Changing architecture:** before adding a new layer, artifact type, or pattern (e.g. extra client between repo and source), **ask the project owner** and align with these docs — do not introduce it unilaterally in a task.
 
+## Components (client)
+
+- **All feature UI lives under** `{feature}/components/<subfeature>/` (e.g. `practice/components/session`, `practice/components/assoc`, `practice/components/case`). **Do not** group by type (`atoms/`, `logic/`). Shared app primitives stay in `core/components/atoms/`. Domain helpers (e.g. `assoc_flags.ts`) sit beside the feature module, not under `components/`.
+- **`{feature}/context/`** — export the React context object (e.g. `practiceContext`) and the value type only; **no** thin wrapper component around `.Provider`. **Wire** deps in `app/page.tsx` (or tests): `practiceContext.Provider value={…}`.
+- **`{feature}/hooks/`** — `usePractice`, `usePracticeRepo`, `useSessionUi`, etc. Do not put high-churn screen state in feature context — only injected deps.
+- **Names:** read naturally; prefer short words. **Screens:** file `session_screen.tsx`, export `SessionScreen`. **Screen logic:** file `session_screen_logic.tsx`, export `SessionScreenLogic` (orchestration; hooks + controller). **Layouts:** export ends with **`Layout`** (`card_layout.tsx` → `CardLayout`). **Atoms:** logicless pieces in their subfeature folder; **no** type suffix in the filename (`grades.tsx`, `assoc/menu.tsx`).
+- **Logic** (orchestration components): `*Logic` suffix on export and file (`session_screen_logic.tsx`).
+- Feature hooks stay in `practice/hooks/` (not under `components/`).
+
 ## Anti-patterns
 
-- UI/controller imports data source, mock, or client.
+- Screen/component imports data source, mock, or client.
 - Repository that only passthroughs one source call (except temporary).
 - Repository **wrapper** methods: validate/normalize input then forward to a `private` method (validate in glue instead).
 - Server `*_usecase.ts` that only wraps one handler’s validate → repo call (put that in the route handler).

@@ -37,7 +37,7 @@ No root `package.json` — install deps per package (`server/`, `web_client/`). 
 
 ### Client flow
 
-`app/page.tsx` → `PracticeSessionScreenUi` → `practice_session_controller` → repository → `HttpCaseDataSource` → API.
+`app/page.tsx` → `practiceContext.Provider` → `SessionScreen` → `SessionScreenLogic` → `usePracticeSessionController` → `usePracticeRepo` → repository → API.
 
 `NEXT_PUBLIC_ASU_API_URL` default `http://127.0.0.1:3001`.
 
