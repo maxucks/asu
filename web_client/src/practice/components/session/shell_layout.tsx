@@ -25,7 +25,7 @@ export function ShellLayout(props: ShellLayoutProps) {
         type="button"
         aria-label="Add vocabulary entry"
         onClick={onNewCase}
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl font-light text-white shadow-lg transition hover:brightness-110"
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl font-light text-accent-foreground shadow-lg transition hover:brightness-110"
       >
         +
       </button>

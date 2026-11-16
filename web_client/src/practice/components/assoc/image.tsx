@@ -1,21 +1,29 @@
 import { useState } from "react"
 
-export function AssocImage({ url }: { readonly url: string }) {
+export function AssocImage({ url, tile }: { readonly url: string; readonly tile?: boolean }) {
   const [failed, setFailed] = useState(false)
   if (failed) {
     return (
-      <div className="rounded-lg border border-slate-700/80 bg-slate-800/60 px-4 py-3 text-sm text-slate-300">
-        <p className="text-slate-400">Image could not be loaded.</p>
-        <a href={url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block break-all text-accent underline-offset-2 hover:underline">
+      <div
+        className={`flex size-full flex-col items-center justify-center gap-2 bg-tile p-2 text-center text-xs text-muted ${tile ? "" : "rounded-lg border border-grid-line px-4 py-3"}`}
+      >
+        <p>Image failed</p>
+        <a href={url} target="_blank" rel="noopener noreferrer" className="text-accent underline-offset-2 hover:underline">
           Open link
         </a>
       </div>
     )
   }
   return (
-    <figure className="overflow-hidden rounded-lg border border-slate-700/80 bg-slate-900/50">
+    <figure className={tile ? "size-full" : "overflow-hidden rounded-lg border border-grid-line bg-tile"}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt="Association image" referrerPolicy="no-referrer" onError={() => setFailed(true)} className="max-h-64 w-full object-contain" />
+      <img
+        src={url}
+        alt="Association image"
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
+        className={tile ? "size-full object-cover" : "max-h-64 w-full object-contain"}
+      />
     </figure>
   )
 }

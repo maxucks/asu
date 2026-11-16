@@ -12,7 +12,7 @@ import {
 } from "react"
 
 export const textFieldClassName =
-  "w-full rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 pr-10 text-sm text-slate-100 placeholder:text-slate-500 focus:border-accent focus:outline-none disabled:opacity-60"
+  "w-full rounded-lg border border-grid-line bg-tile px-3 py-2 pr-10 text-sm text-foreground placeholder:text-muted focus:border-accent focus:outline-none disabled:opacity-60"
 
 function mergeRefs<T>(...refs: Array<Ref<T> | undefined>) {
   return (value: T | null) => {

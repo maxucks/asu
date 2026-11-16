@@ -1,15 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0f1419;
-  --foreground: #e7e9ea;
-  --card: #1a2332;
-  --muted: #8b98a5;
-  --accent: #3d8bfd;
-  --accent-soft: #1e3a5f;
-  --success: #00ba7c;
-  --warn: #f7b928;
-  --danger: #f4212e;
+  --background: #0c0c0c;
+  --foreground: #e8e8e8;
+  --card: #141414;
+  --muted: #9a9a9a;
+  --accent: #f0c419;
+  --accent-soft: #2a2416;
+  --accent-foreground: #0c0c0c;
+  --grid-line: #262626;
+  --tile: #1c1c1c;
+  --success: #22c55e;
+  --warn: #eab308;
+  --danger: #ef4444;
 }
 
 @theme inline {
@@ -19,12 +22,14 @@
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-grid-line: var(--grid-line);
+  --color-tile: var(--tile);
   --color-success: var(--success);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
 }
 
-/* Scroll cap for long menus: shorter than 24rem on small viewports */
 @utility max-h-dropdown {
   max-height: min(24rem, 70dvh);
 }

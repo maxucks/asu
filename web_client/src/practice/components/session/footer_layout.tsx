@@ -14,7 +14,7 @@ export function FooterLayout({ onFront, onReveal, onGrade }: FooterLayoutProps) 
         <button
           type="button"
           onClick={onReveal}
-          className="w-full rounded-xl bg-accent px-4 py-3.5 text-base font-semibold text-white transition hover:brightness-110"
+          className="w-full rounded-xl bg-accent px-4 py-3.5 text-base font-semibold text-accent-foreground transition hover:brightness-110"
         >
           Show answer
         </button>

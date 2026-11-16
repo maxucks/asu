@@ -11,8 +11,8 @@ export function Grades({ onGrade }: { readonly onGrade: (grade: PracticeGradeDto
     <div className="grid gap-3 sm:grid-cols-3">
       {BUTTONS.map((btn) => (
         <button key={btn.grade} type="button" onClick={() => onGrade(btn.grade)} className={`rounded-xl border px-4 py-4 text-center transition ${btn.className}`}>
-          <div className="text-base font-semibold text-slate-100">{btn.label}</div>
-          <div className="mt-1 text-xs text-slate-400">{btn.hint}</div>
+          <div className="text-base font-semibold text-foreground">{btn.label}</div>
+          <div className="mt-1 text-xs text-muted">{btn.hint}</div>
         </button>
       ))}
     </div>

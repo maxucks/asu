@@ -1,6 +1,8 @@
 import type { AssocFlags } from "@/practice/assoc_flags"
 import type { PracticeAssociation } from "@/practice/practice_model"
+import { AddMenu } from "@/practice/components/session/add_menu"
 import { AssocCardLayout } from "@/practice/components/assoc/card_layout"
+import type { AssociationAddAction } from "@/practice/practice_utils"
 import type { ReactNode } from "react"
 
 export type AssocRow = {
@@ -15,18 +17,35 @@ export type AssocRow = {
   readonly onReveal: () => void
 }
 
-export function AssocListLayout({ rows }: { readonly rows: readonly AssocRow[] }) {
+type AssocListLayoutProps = {
+  readonly rows: readonly AssocRow[]
+  readonly showAdd: boolean
+  readonly saving: boolean
+  readonly addText: ReactNode
+  readonly addUrl: ReactNode
+  readonly onPick: (action: AssociationAddAction) => void
+}
+
+export function AssocListLayout({ rows, showAdd, saving, addText, addUrl, onPick }: AssocListLayoutProps) {
   return (
-    <ul className="space-y-3">
+    <ul className="grid grid-cols-2 gap-px bg-grid-line">
       {rows.map((row) => {
         if (row.flags.editing && row.flags.compose === "text") {
-          return <li key={row.association.id}>{row.textEdit}</li>
+          return (
+            <li key={row.association.id} className="col-span-2 bg-card">
+              {row.textEdit}
+            </li>
+          )
         }
         if (row.flags.editing && row.flags.compose === "image_url") {
-          return <li key={row.association.id}>{row.urlEdit}</li>
+          return (
+            <li key={row.association.id} className="col-span-2 bg-card">
+              {row.urlEdit}
+            </li>
+          )
         }
         return (
-          <li key={row.association.id}>
+          <li key={row.association.id} className="min-w-0 bg-card">
             <AssocCardLayout
               association={row.association}
               visible={row.flags.visible}
@@ -43,6 +62,13 @@ export function AssocListLayout({ rows }: { readonly rows: readonly AssocRow[] }
           </li>
         )
       })}
+      {addText ? <li className="col-span-2 bg-card">{addText}</li> : null}
+      {addUrl ? <li className="col-span-2 bg-card">{addUrl}</li> : null}
+      {showAdd ? (
+        <li className="min-w-0 bg-card">
+          <AddMenu disabled={saving} onPick={onPick} />
+        </li>
+      ) : null}
     </ul>
   )
 }

@@ -10,12 +10,12 @@ type CaseFieldsLayoutProps = {
 
 export function CaseFieldsLayout({ lemma, meaning, disabled, onLemma, onMeaning }: CaseFieldsLayoutProps) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-slate-600/80 bg-slate-900/40 p-3">
-      <label className="flex flex-col gap-1 text-xs text-slate-500">
+    <div className="flex flex-col gap-3 rounded-xl border border-grid-line bg-tile p-3">
+      <label className="flex flex-col gap-1 text-xs text-muted">
         Lemma
         <TextField value={lemma} disabled={disabled} onChange={(e) => onLemma(e.target.value)} />
       </label>
-      <label className="flex flex-col gap-1 text-xs text-slate-500">
+      <label className="flex flex-col gap-1 text-xs text-muted">
         Description
         <TextArea value={meaning} disabled={disabled} rows={3} onChange={(e) => onMeaning(e.target.value)} />
       </label>

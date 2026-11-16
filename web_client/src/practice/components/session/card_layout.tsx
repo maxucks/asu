@@ -30,31 +30,43 @@ export type CardLayoutProps = {
 
 export function CardLayout(props: CardLayoutProps) {
   return (
-    <section className="flex flex-1 flex-col gap-4 rounded-2xl border border-slate-700/80 bg-card p-5 shadow-lg">
-      <ToolbarLayout
-        onFront={props.onFront}
-        editingCase={props.editingCase}
-        caseSaving={props.caseSaving}
+    <section className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-grid-line bg-card shadow-lg">
+      <div className="space-y-3 border-b border-grid-line px-5 py-5">
+        <ToolbarLayout
+          onFront={props.onFront}
+          editingCase={props.editingCase}
+          caseSaving={props.caseSaving}
+          onCancelCase={props.onCancelCase}
+          onSaveCase={props.onSaveCase}
+          onEditCase={props.onEditCase}
+          onDeleteCase={props.onDeleteCase}
+        />
+        {props.editingCase ? (
+          <CaseFieldsLayout
+            lemma={props.lemma}
+            meaning={props.meaning}
+            disabled={props.caseSaving}
+            onLemma={props.onLemma}
+            onMeaning={props.onMeaning}
+          />
+        ) : props.cardMeaning ? (
+          <p className="rounded-xl border border-grid-line bg-tile px-4 py-3 text-sm leading-relaxed text-foreground/90">{props.cardMeaning}</p>
+        ) : null}
+      </div>
+
+      <h2 className="sr-only">Associations</h2>
+      <AssocListLayout
+        rows={props.rows}
         showAdd={props.showAdd}
         saving={props.saving}
-        onCancelCase={props.onCancelCase}
-        onSaveCase={props.onSaveCase}
-        onEditCase={props.onEditCase}
-        onDeleteCase={props.onDeleteCase}
+        addText={props.addText}
+        addUrl={props.addUrl}
         onPick={props.onPick}
       />
-      {props.addText}
-      {props.addUrl}
-      {props.editingCase ? (
-        <CaseFieldsLayout lemma={props.lemma} meaning={props.meaning} disabled={props.caseSaving} onLemma={props.onLemma} onMeaning={props.onMeaning} />
-      ) : props.cardMeaning ? (
-        <p className="text-sm leading-relaxed text-slate-300">{props.cardMeaning}</p>
-      ) : null}
-      <h2 className="sr-only">Associations</h2>
-      <AssocListLayout rows={props.rows} />
+
       {props.showLemma && props.revealLemma ? (
-        <div className="rounded-xl border border-accent-soft bg-accent-soft/40 px-4 py-4">
-          <p className="text-2xl font-semibold tracking-tight text-white">{props.revealLemma}</p>
+        <div className="border-t border-grid-line bg-accent-soft/50 px-5 py-4">
+          <p className="text-2xl font-semibold tracking-tight text-accent">{props.revealLemma}</p>
         </div>
       ) : null}
     </section>

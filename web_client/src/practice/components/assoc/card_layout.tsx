@@ -6,9 +6,9 @@ import type { PracticeAssociation } from "@/practice/practice_model"
 import { imageAssociationStubLabel, isImageAssociationStubRef, isImageAssociationUrl } from "@/practice/practice_utils"
 
 const MEDIA_STUBS: Record<Exclude<PracticeAssociation["kind"], "text" | "image">, string> = {
-  audio: "Audio placeholder",
-  sketch: "Sketch placeholder",
-  video: "Video placeholder",
+  audio: "Audio",
+  sketch: "Sketch",
+  video: "Video",
 }
 
 type AssocCardLayoutProps = {
@@ -28,22 +28,33 @@ type AssocCardLayoutProps = {
 function Body({ association }: { readonly association: PracticeAssociation }) {
   if (association.kind === "text") {
     return (
-      <div className="rounded-lg border border-slate-700/80 bg-slate-800/60 px-4 py-3 text-sm leading-relaxed text-slate-100">{association.contentRef}</div>
+      <div className="flex size-full items-center justify-center p-2 text-center text-xs leading-snug text-foreground">
+        {association.contentRef}
+      </div>
     )
   }
   if (association.kind === "image") {
-    if (isImageAssociationUrl(association.contentRef)) return <AssocImage url={association.contentRef} />
+    if (isImageAssociationUrl(association.contentRef)) {
+      return (
+        <div className="size-full">
+          <AssocImage url={association.contentRef} tile />
+        </div>
+      )
+    }
     const label = isImageAssociationStubRef(association.contentRef)
       ? (imageAssociationStubLabel(association.contentRef) ?? association.contentRef)
       : association.contentRef
-    return <AssocStub kind="image" label={label} stacked />
+    return <AssocStub kind="image" label={label} stacked tile />
   }
-  return <AssocStub kind={association.kind} label={MEDIA_STUBS[association.kind]} />
+  return <AssocStub kind={association.kind} label={MEDIA_STUBS[association.kind]} tile />
 }
 
 function MenuRail(props: Omit<AssocCardLayoutProps, "association" | "visible" | "onReveal">) {
   return (
-    <div className="absolute right-2 top-2 z-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 has-[button[aria-expanded=true]]:opacity-100" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="absolute right-1 top-1 z-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 has-[button[aria-expanded=true]]:opacity-100"
+      onClick={(e) => e.stopPropagation()}
+    >
       <AssocMenu {...props} />
     </div>
   )
@@ -52,14 +63,14 @@ function MenuRail(props: Omit<AssocCardLayoutProps, "association" | "visible" | 
 export function AssocCardLayout({ association, visible, onReveal, ...menu }: AssocCardLayoutProps) {
   if (!visible && association.hiddenFromPractice && onReveal) {
     return (
-      <div className="group relative">
-        <AssocHiddenPeek association={association} onReveal={onReveal} />
+      <div className="group relative aspect-square w-full overflow-hidden">
+        <AssocHiddenPeek association={association} onReveal={onReveal} tile />
         <MenuRail {...menu} />
       </div>
     )
   }
   return (
-    <div className="group relative">
+    <div className="group relative aspect-square w-full overflow-hidden bg-tile">
       <Body association={association} />
       <MenuRail {...menu} />
     </div>

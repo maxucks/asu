@@ -43,17 +43,17 @@ export function AssocMenu(props: {
 
   return (
     <div ref={rootRef} className="relative shrink-0">
-      <button type="button" aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((v) => !v)} className="rounded-md border border-slate-600/80 bg-slate-900/95 px-2 py-1 text-sm font-semibold leading-none text-slate-300 shadow-sm transition hover:border-slate-500 hover:text-white">
+      <button type="button" aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((v) => !v)} className="rounded-md border border-grid-line bg-card/95 px-2 py-1 text-sm font-semibold leading-none text-foreground shadow-sm backdrop-blur-sm transition hover:border-accent/40 hover:text-accent">
         ⋯
       </button>
       {open ? (
-        <ul className="absolute right-0 z-20 mt-1 min-w-42 overflow-hidden rounded-lg border border-slate-600 bg-slate-900 py-1 shadow-xl" role="menu">
+        <ul className="absolute right-0 z-20 mt-1 min-w-42 overflow-hidden rounded-lg border border-grid-line bg-card py-1 shadow-xl" role="menu">
           {items.map((item) => (
             <li key={item.action} role="none">
               <button
                 type="button"
                 role="menuitem"
-                className={`block w-full px-3 py-2 text-left text-sm hover:bg-slate-800 ${"danger" in item && item.danger ? "text-red-300 hover:text-red-200" : "text-slate-200"}`}
+                className={`block w-full px-3 py-2 text-left text-sm hover:bg-tile ${"danger" in item && item.danger ? "text-danger hover:text-danger" : "text-foreground"}`}
                 onClick={() => pick(item.action)}
               >
                 {item.label}

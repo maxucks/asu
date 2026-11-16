@@ -5,9 +5,9 @@ type HeaderLayoutProps = {
 
 export function HeaderLayout({ language, progress }: HeaderLayoutProps) {
   return (
-    <header className="flex items-center justify-between text-sm text-slate-400">
-      <span>{language}</span>
-      <span>{progress}</span>
+    <header className="flex items-center justify-between text-sm text-muted">
+      <span className="font-medium text-foreground/80">{language}</span>
+      <span className="tabular-nums">{progress}</span>
     </header>
   )
 }
