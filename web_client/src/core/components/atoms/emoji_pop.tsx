@@ -23,8 +23,8 @@ export function EmojiPop({ onPick, onClose }: { readonly onPick: (emoji: string)
 
   return (
     <div ref={rootRef} className="absolute top-full right-0 z-30 mt-1 w-72 rounded-lg border border-slate-600 bg-slate-900 p-2 shadow-xl" role="dialog" aria-label="Emoji picker" onMouseDown={(e) => e.stopPropagation()}>
-      <Frimousse.Root className="isolate flex h-72 w-full flex-col gap-2" onEmojiSelect={({ emoji }) => { onPick(emoji); onClose() }}>
-        <Frimousse.Search placeholder="Search emoji…" className="w-full rounded-md border border-slate-600 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-accent focus:outline-none" autoFocus />
+      <Frimousse.Root className="isolate flex h-72 w-full flex-col gap-2" onEmojiSelect={({ emoji }) => onPick(emoji)}>
+        <Frimousse.Search placeholder="Search emoji…" className="w-full rounded-md border border-slate-600 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-accent focus:outline-none" />
         <Frimousse.Viewport className="min-h-0 flex-1 outline-hidden">
           <Frimousse.Loading className="flex flex-1 items-center justify-center text-xs text-slate-500">Loading…</Frimousse.Loading>
           <Frimousse.Empty className="flex flex-1 items-center justify-center text-xs text-slate-500">No emoji found.</Frimousse.Empty>
@@ -36,7 +36,13 @@ export function EmojiPop({ onPick, onClose }: { readonly onPick: (emoji: string)
               ),
               Row: ({ children, ...props }) => <div {...props} className="flex gap-0.5 px-0.5">{children}</div>,
               Emoji: ({ emoji, ...props }) => (
-                <button {...props} type="button" title={emoji.label} className="flex size-8 items-center justify-center rounded-md text-lg hover:bg-slate-800 data-[active]:bg-slate-700">
+                <button
+                  {...props}
+                  type="button"
+                  title={emoji.label}
+                  onMouseDown={(event) => event.preventDefault()}
+                  className="flex size-8 items-center justify-center rounded-md text-lg hover:bg-slate-800 data-[active]:bg-slate-700"
+                >
                   {emoji.emoji}
                 </button>
               ),

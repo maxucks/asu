@@ -37,19 +37,33 @@ function useEmojiInsert<T extends HTMLInputElement | HTMLTextAreaElement>(
   onChange: ((event: ChangeEvent<T>) => void) | undefined,
 ) {
   const fieldRef = useRef<T | null>(null)
+  const selectionRef = useRef({ start: 0, end: 0 })
   const [pickerOpen, setPickerOpen] = useState(false)
 
   const stringValue = typeof value === "string" ? value : value === undefined ? "" : String(value)
 
+  const rememberSelection = useCallback(() => {
+    const element = fieldRef.current
+    if (!element) return
+    const start = element.selectionStart
+    const end = element.selectionEnd
+    if (start === null || end === null) return
+    selectionRef.current = { start, end }
+  }, [])
+
   const applyValue = useCallback(
-    (nextValue: string, caret: number) => {
+    (nextValue: string, caret: number, refocusField = true) => {
       const element = fieldRef.current
       if (!element || !onChange) return
+
+      selectionRef.current = { start: caret, end: caret }
 
       onChange({
         target: { ...element, value: nextValue },
         currentTarget: { ...element, value: nextValue },
       } as ChangeEvent<T>)
+
+      if (!refocusField) return
 
       requestAnimationFrame(() => {
         element.focus()
@@ -63,18 +77,30 @@ function useEmojiInsert<T extends HTMLInputElement | HTMLTextAreaElement>(
     (emoji: string) => {
       const element = fieldRef.current
       if (!element) return
-      const { nextValue, caret } = insertTextAtCaret(
-        stringValue,
-        element.selectionStart,
-        element.selectionEnd,
-        emoji,
-      )
+
+      const live = document.activeElement === element
+      const selectionStart = live ? element.selectionStart : selectionRef.current.start
+      const selectionEnd = live ? element.selectionEnd : selectionRef.current.end
+
+      const { nextValue, caret } = insertTextAtCaret(stringValue, selectionStart, selectionEnd, emoji)
       applyValue(nextValue, caret)
     },
     [applyValue, stringValue],
   )
 
-  return { fieldRef, pickerOpen, setPickerOpen, onEmojiPick }
+  const togglePicker = useCallback(() => {
+    rememberSelection()
+    setPickerOpen((open) => !open)
+  }, [rememberSelection])
+
+  const fieldSelectionHandlers = {
+    onSelect: rememberSelection,
+    onKeyUp: rememberSelection,
+    onMouseUp: rememberSelection,
+    onBlur: rememberSelection,
+  }
+
+  return { fieldRef, pickerOpen, setPickerOpen, onEmojiPick, togglePicker, fieldSelectionHandlers }
 }
 
 function EmojiTriggerButton({
@@ -90,6 +116,7 @@ function EmojiTriggerButton({
     <button
       type="button"
       disabled={disabled}
+      onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
       className={
         multiline
@@ -108,12 +135,14 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
   { className, disabled, onChange, value, ...rest },
   ref,
 ) {
-  const { fieldRef, pickerOpen, setPickerOpen, onEmojiPick } = useEmojiInsert<HTMLInputElement>(value, onChange)
+  const { fieldRef, pickerOpen, setPickerOpen, onEmojiPick, togglePicker, fieldSelectionHandlers } =
+    useEmojiInsert<HTMLInputElement>(value, onChange)
 
   return (
     <div className="relative">
       <input
         {...rest}
+        {...fieldSelectionHandlers}
         ref={mergeRefs(ref, fieldRef)}
         value={value}
         disabled={disabled}
@@ -123,7 +152,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
       <EmojiTriggerButton
         disabled={disabled}
         multiline={false}
-        onClick={() => setPickerOpen((open) => !open)}
+        onClick={togglePicker}
       />
       {pickerOpen && !disabled ? (
         <EmojiPop onPick={onEmojiPick} onClose={() => setPickerOpen(false)} />
@@ -136,19 +165,21 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
   { className, disabled, onChange, value, ...rest },
   ref,
 ) {
-  const { fieldRef, pickerOpen, setPickerOpen, onEmojiPick } = useEmojiInsert<HTMLTextAreaElement>(value, onChange)
+  const { fieldRef, pickerOpen, setPickerOpen, onEmojiPick, togglePicker, fieldSelectionHandlers } =
+    useEmojiInsert<HTMLTextAreaElement>(value, onChange)
 
   return (
     <div className="relative">
       <textarea
         {...rest}
+        {...fieldSelectionHandlers}
         ref={mergeRefs(ref, fieldRef)}
         value={value}
         disabled={disabled}
         onChange={onChange}
         className={className ?? textFieldClassName}
       />
-      <EmojiTriggerButton disabled={disabled} multiline onClick={() => setPickerOpen((open) => !open)} />
+      <EmojiTriggerButton disabled={disabled} multiline onClick={togglePicker} />
       {pickerOpen && !disabled ? (
         <EmojiPop onPick={onEmojiPick} onClose={() => setPickerOpen(false)} />
       ) : null}
