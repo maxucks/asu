@@ -33,24 +33,30 @@ export function AddMenu({ disabled, onPick }: { readonly disabled?: boolean; rea
       </button>
       {open && !disabled ? (
         <ul
-          className="absolute bottom-full left-1/2 z-20 mb-1 max-h-dropdown w-56 -translate-x-1/2 overflow-y-auto rounded-lg border border-grid-line bg-card py-1 shadow-xl"
+          className="absolute bottom-full left-1/2 z-20 mb-1 max-h-dropdown w-56 -translate-x-1/2 overflow-y-auto rounded-lg border border-grid-line bg-card py-1"
           role="menu"
         >
-          {ASSOCIATION_ADD_MENU.map((item) => (
-            <li key={item.label} role="none">
-              <button
-                type="button"
-                role="menuitem"
-                className="block w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-tile"
-                onClick={() => {
-                  onPick(item.pick)
-                  setOpen(false)
-                }}
-              >
-                {item.label}
-              </button>
-            </li>
-          ))}
+          {ASSOCIATION_ADD_MENU.map((item) => {
+            const enabled = item.enabled !== false
+            return (
+              <li key={item.label} role="none">
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={!enabled}
+                  className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm disabled:cursor-not-allowed disabled:opacity-50 enabled:text-foreground enabled:hover:bg-tile"
+                  onClick={() => {
+                    if (!enabled) return
+                    onPick(item.pick)
+                    setOpen(false)
+                  }}
+                >
+                  <span>{item.label}</span>
+                  {item.hint ? <span className="text-[10px] font-medium uppercase tracking-wide text-muted">{item.hint}</span> : null}
+                </button>
+              </li>
+            )
+          })}
         </ul>
       ) : null}
     </div>

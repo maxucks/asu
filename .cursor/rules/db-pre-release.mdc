@@ -1,0 +1,16 @@
+---
+description: SQLite schema changes before first release
+alwaysApply: true
+---
+
+# Database (pre-release)
+
+The app is **not released** — do **not** add new numbered files under `server/drizzle/` (no `0001_*.sql`, no extra Drizzle journal entries).
+
+When the schema changes:
+
+1. Edit `server/drizzle/0000_init.sql` and `server/src/db/schema.ts` together.
+2. Add idempotent upgrades in `server/src/db/push_schema.ts` for developers with an existing `.sqlite` file.
+3. Document in `server/README.md` only if setup steps change.
+
+Use `bun run db:push` (or `db:setup`), not incremental migrations, until release.

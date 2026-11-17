@@ -6,6 +6,7 @@ import type { AssociationAddAction } from "@/practice/practice_utils"
 import type { ReactNode } from "react"
 
 export type CardLayoutProps = {
+  readonly flat?: boolean
   readonly onFront: boolean
   readonly editingCase: boolean
   readonly caseSaving: boolean
@@ -30,7 +31,9 @@ export type CardLayoutProps = {
 
 export function CardLayout(props: CardLayoutProps) {
   return (
-    <section className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-grid-line bg-card shadow-lg">
+    <section
+      className={`flex flex-1 flex-col overflow-hidden rounded-2xl border border-grid-line bg-card ${props.flat ? "" : "shadow-lg"}`}
+    >
       <div className="space-y-3 border-b border-grid-line px-5 py-5">
         <ToolbarLayout
           onFront={props.onFront}

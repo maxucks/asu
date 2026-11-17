@@ -112,6 +112,18 @@ export function createPracticeRoutes(repository: PracticeRepository) {
     return noContent(c)
   })
 
+  routes.get("/cases", async (c) => {
+    const query = parseQuery(c.req.query(), practiceQueueQuerySchema)
+    if (!query.ok) {
+      return error(c, query.error, practiceErrorHttpStatus(query.error.code))
+    }
+    const result = await repository.listCases(query.value.languageId)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return ok(c, result.value)
+  })
+
   routes.get("/queue", async (c) => {
     const query = parseQuery(c.req.query(), practiceQueueQuerySchema)
     if (!query.ok) {

@@ -19,6 +19,27 @@ export type AssocFlags = {
   readonly canDelete: boolean
 }
 
+export function assocLibraryFlags(
+  association: PracticeAssociation,
+  editor: AssociationEditorState | null,
+  revealedHiddenAssociationIds: readonly string[],
+): AssocFlags {
+  const editing = editor?.intent === "edit" && editor.associationId === association.id
+  const canManage = !editing
+  const visible =
+    !association.hiddenFromPractice || revealedHiddenAssociationIds.includes(association.id)
+
+  return {
+    editing,
+    compose: editing ? associationComposeModeForEdit(association) : null,
+    visible,
+    canEdit: canManage && isEditableAssociation(association),
+    canHide: canManage && !association.hiddenFromPractice,
+    canUnhide: canManage && association.hiddenFromPractice,
+    canDelete: canManage,
+  }
+}
+
 export function assocFlags(
   association: PracticeAssociation,
   session: Session,

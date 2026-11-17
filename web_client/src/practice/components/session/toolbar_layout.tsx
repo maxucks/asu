@@ -1,6 +1,8 @@
 import { IconButton, IconCheck, IconClose, IconEdit, IconTrash } from "@/practice/components/session/icon_button"
 
 type ToolbarLayoutProps = {
+  readonly variant?: "practice" | "library"
+  readonly caseTitle?: string
   readonly onFront: boolean
   readonly editingCase: boolean
   readonly caseSaving: boolean
@@ -10,19 +12,37 @@ type ToolbarLayoutProps = {
   readonly onDeleteCase: () => void
 }
 
-export function ToolbarLayout({ onFront, editingCase, caseSaving, onCancelCase, onSaveCase, onEditCase, onDeleteCase }: ToolbarLayoutProps) {
+export function ToolbarLayout({
+  variant = "practice",
+  caseTitle,
+  onFront,
+  editingCase,
+  caseSaving,
+  onCancelCase,
+  onSaveCase,
+  onEditCase,
+  onDeleteCase,
+}: ToolbarLayoutProps) {
+  const library = variant === "library"
+
   return (
     <header className="flex items-start justify-between gap-3">
       <div className="min-w-0 flex-1 space-y-1">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
-          {onFront ? "Recall" : "Review"}
+          {library ? "Case" : onFront ? "Recall" : "Review"}
         </p>
-        <h1 className="text-xl font-semibold leading-tight tracking-tight text-foreground">
-          {onFront ? "What's the word?" : "How did you do?"}
-        </h1>
-        <p className="text-sm leading-relaxed text-muted">
-          {onFront ? "Study the cues in the grid, then reveal the answer." : "Rate how well you remembered it."}
-        </p>
+        {library ? (
+          <h1 className="text-xl font-semibold leading-tight tracking-tight text-foreground">{caseTitle ?? "—"}</h1>
+        ) : (
+          <>
+            <h1 className="text-xl font-semibold leading-tight tracking-tight text-foreground">
+              {onFront ? "What's the word?" : "How did you do?"}
+            </h1>
+            <p className="text-sm leading-relaxed text-muted">
+              {onFront ? "Study the cues in the grid, then reveal the answer." : "Rate how well you remembered it."}
+            </p>
+          </>
+        )}
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
         {editingCase ? (

@@ -13,6 +13,7 @@ const MEDIA_STUBS: Record<Exclude<PracticeAssociation["kind"], "text" | "image">
 
 type AssocCardLayoutProps = {
   readonly association: PracticeAssociation
+  readonly textClassName?: string
   readonly visible: boolean
   readonly canEdit?: boolean
   readonly canHide?: boolean
@@ -25,10 +26,10 @@ type AssocCardLayoutProps = {
   readonly onReveal?: () => void
 }
 
-function Body({ association }: { readonly association: PracticeAssociation }) {
+function Body({ association, textClassName }: { readonly association: PracticeAssociation; readonly textClassName: string }) {
   if (association.kind === "text") {
     return (
-      <div className="flex size-full items-center justify-center p-2 text-center text-xs leading-snug text-foreground">
+      <div className={`flex size-full items-center justify-center p-2 text-center leading-snug text-foreground ${textClassName}`}>
         {association.contentRef}
       </div>
     )
@@ -60,7 +61,7 @@ function MenuRail(props: Omit<AssocCardLayoutProps, "association" | "visible" | 
   )
 }
 
-export function AssocCardLayout({ association, visible, onReveal, ...menu }: AssocCardLayoutProps) {
+export function AssocCardLayout({ association, textClassName = "text-xs", visible, onReveal, ...menu }: AssocCardLayoutProps) {
   if (!visible && association.hiddenFromPractice && onReveal) {
     return (
       <div className="group relative aspect-square w-full overflow-hidden">
@@ -71,7 +72,7 @@ export function AssocCardLayout({ association, visible, onReveal, ...menu }: Ass
   }
   return (
     <div className="group relative aspect-square w-full overflow-hidden bg-tile">
-      <Body association={association} />
+      <Body association={association} textClassName={textClassName} />
       <MenuRail {...menu} />
     </div>
   )

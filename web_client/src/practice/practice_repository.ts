@@ -200,6 +200,15 @@ export class PracticeRepository {
     }
   }
 
+  async listCases(languageId: string): Promise<Result<PracticeQueueDto, PracticeError>> {
+    try {
+      const listing = await this.caseDataSource.fetchCasesByLanguageId(languageId);
+      return ok(listing);
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
+
   async getQueue(languageId: string): Promise<Result<PracticeQueueDto, PracticeError>> {
     try {
       const queue = await this.caseDataSource.fetchPracticeQueue(languageId);

@@ -1,1 +1,0 @@
-ALTER TABLE `languages` ADD COLUMN `icon` text DEFAULT '🌐' NOT NULL;

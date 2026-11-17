@@ -1,4 +1,5 @@
 import { assocFlags } from "@/practice/assoc_flags"
+import { CaseLibraryDrawer } from "@/practice/components/case_library/case_library_drawer"
 import { LanguageSwitchModal } from "@/practice/components/language/language_switch_modal"
 import type { AssocRow } from "@/practice/components/assoc/list_layout"
 import { AssocTextFormLayout } from "@/practice/components/assoc/text_form_layout"
@@ -21,9 +22,12 @@ export function SessionScreenLogic() {
   const ui = useSessionUi(session)
   const { name: languageName, icon: languageIcon } = useActiveLanguageMeta()
   const [languageOpen, setLanguageOpen] = useState(false)
+  const [libraryOpen, setLibraryOpen] = useState(false)
+
+  const openLibrary = () => setLibraryOpen(true)
 
   const languageBar = (
-  <HeaderLayout
+    <HeaderLayout
       languageIcon={languageIcon}
       languageName={languageName}
       progress={
@@ -32,10 +36,11 @@ export function SessionScreenLogic() {
           : "—"
       }
       onOpenLanguages={() => setLanguageOpen(true)}
+      onOpenCaseLibrary={openLibrary}
     />
   )
 
-  const modal = (
+  const languageModal = (
     <LanguageSwitchModal
       open={languageOpen}
       activeLanguageId={activeLanguageId}
@@ -45,10 +50,22 @@ export function SessionScreenLogic() {
     />
   )
 
+  const caseLibrary = (
+    <CaseLibraryDrawer
+      open={libraryOpen}
+      languageId={activeLanguageId}
+      languageName={languageName}
+      repo={repo}
+      onClose={() => setLibraryOpen(false)}
+      onVocabularyChange={() => void session.reloadQueue()}
+    />
+  )
+
   if (session.state.status === "loading") {
     return (
       <>
-        {modal}
+        {languageModal}
+        {caseLibrary}
         <div className="mx-auto flex min-h-dvh max-w-lg flex-col gap-4 p-6">
           {languageBar}
           <StatusLayout kind="loading" />
@@ -60,7 +77,8 @@ export function SessionScreenLogic() {
   if (session.state.status === "error") {
     return (
       <>
-        {modal}
+        {languageModal}
+        {caseLibrary}
         <div className="mx-auto flex min-h-dvh max-w-lg flex-col gap-4 p-6">
           {languageBar}
           <StatusLayout kind="error" message={session.state.error.message} code={session.state.error.code} />
@@ -72,7 +90,8 @@ export function SessionScreenLogic() {
   if (session.state.status === "finished") {
     return (
       <>
-        {modal}
+        {languageModal}
+        {caseLibrary}
         <div className="mx-auto flex min-h-dvh max-w-lg flex-col gap-4 p-6">
           {languageBar}
           <StatusLayout kind="finished" />
@@ -82,42 +101,15 @@ export function SessionScreenLogic() {
   }
 
   if (session.state.status === "ready" && session.state.cards.length === 0) {
-    const emptyOverlays = (
-    <OverlaysLayout
-      createOpen={ui.createOpen}
-      createBusy={session.caseBusy === "create"}
-      onCloseCreate={() => ui.setCreateOpen(false)}
-      onCreate={(lemma, meaning) => {
-        void (async () => {
-          if (await session.createCase(lemma, meaning)) ui.setCreateOpen(false)
-        })()
-      }}
-      assocDelete={{
-        open: false,
-        message: "",
-        busy: false,
-        onCancel: () => ui.setPendingAssocDelete(null),
-        onConfirm: () => void ui.confirmAssocDelete(),
-      }}
-      caseDelete={{
-        open: false,
-        message: "",
-        busy: false,
-        onCancel: () => ui.setPendingCaseDelete(false),
-        onConfirm: () => void ui.confirmCaseDelete(),
-      }}
-    />
-    )
-
     return (
       <>
-        {modal}
+        {languageModal}
+        {caseLibrary}
         <EmptyQueueLayout
           languageIcon={languageIcon}
           languageName={languageName}
           onOpenLanguages={() => setLanguageOpen(true)}
-          onAddCase={() => ui.setCreateOpen(true)}
-          overlays={emptyOverlays}
+          onOpenCaseLibrary={openLibrary}
         />
       </>
     )
@@ -179,11 +171,13 @@ export function SessionScreenLogic() {
 
   return (
     <>
-      {modal}
+      {languageModal}
+      {caseLibrary}
       <ShellLayout
         languageIcon={languageIcon}
         languageName={languageName}
         onOpenLanguages={() => setLanguageOpen(true)}
+        onOpenCaseLibrary={openLibrary}
         progress={`${cardIndex + 1} / ${cards.length}`}
         onFront={onFront}
         editingCase={ui.editingCase}
@@ -207,17 +201,12 @@ export function SessionScreenLogic() {
         onPick={ui.pickAssoc}
         onReveal={session.revealAnswer}
         onGrade={session.submitGrade}
-        onNewCase={() => ui.setCreateOpen(true)}
         overlays={
           <OverlaysLayout
-            createOpen={ui.createOpen}
-            createBusy={session.caseBusy === "create"}
-            onCloseCreate={() => ui.setCreateOpen(false)}
-            onCreate={(lemma, meaning) => {
-              void (async () => {
-                if (await session.createCase(lemma, meaning)) ui.setCreateOpen(false)
-              })()
-            }}
+            createOpen={false}
+            createBusy={false}
+            onCloseCreate={() => undefined}
+            onCreate={() => undefined}
             assocDelete={{
               open: ui.pendingAssocDelete !== null,
               message: ui.pendingAssocDelete

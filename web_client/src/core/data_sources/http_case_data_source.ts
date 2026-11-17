@@ -34,6 +34,18 @@ export class HttpCaseDataSource {
     private readonly baseUrl: string = asuApiBaseUrl(),
   ) {}
 
+  async fetchCasesByLanguageId(languageId: string): Promise<PracticeQueueDto> {
+    const listing = await requestJson<PracticeQueueDto>(
+      this.baseUrl,
+      "GET",
+      `/api/practice/cases?languageId=${encodeURIComponent(languageId)}`,
+    )
+    for (const card of listing.cards) {
+      this.queueCardsById.set(card.id, card)
+    }
+    return listing
+  }
+
   async fetchPracticeQueue(languageId: string): Promise<PracticeQueueDto> {
     const queue = await requestJson<PracticeQueueDto>(
       this.baseUrl,

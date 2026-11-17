@@ -201,16 +201,27 @@ export class PracticeRepository {
     }
   }
 
-  async getQueue(languageId: string): Promise<Result<PracticeQueueDto, PracticeError>> {
+  async listCases(languageId: string): Promise<Result<PracticeQueueDto, PracticeError>> {
     try {
       const allCases = await this.caseDataSource.listCaseDtosByLanguageId(languageId)
-      if (allCases.length === 0) {
+      const cards = allCases.map((caseDto) => PracticeRepository.caseDtoToPracticeCard(caseDto))
+      return ok({ cards })
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
+  async getQueue(languageId: string): Promise<Result<PracticeQueueDto, PracticeError>> {
+    try {
+      const listed = await this.listCases(languageId)
+      if (!listed.ok) return listed
+
+      if (listed.value.cards.length === 0) {
         return ok({ cards: [] })
       }
 
-      const shuffled = PracticeRepository.shuffle([...allCases])
-      const cards = shuffled.map((caseDto) => PracticeRepository.caseDtoToPracticeCard(caseDto))
-      return ok({ cards })
+      const shuffled = PracticeRepository.shuffle([...listed.value.cards])
+      return ok({ cards: shuffled })
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown))
     }

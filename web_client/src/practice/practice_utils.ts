@@ -97,36 +97,48 @@ const KIND_STUB_MENU_LABELS: Record<Exclude<AssociationKind, "text" | "image">, 
   video: "Video (stub)",
 }
 
-export const ASSOCIATION_ADD_MENU: readonly {
+export type AssociationAddMenuItem = {
   readonly pick: AssociationAddAction
   readonly label: string
-}[] = [
-  { pick: { action: "text" }, label: "Text mnemonic" },
-  { pick: { action: "image_url" }, label: "Image from URL" },
+  readonly enabled?: boolean
+  readonly hint?: string
+}
+
+export const ASSOCIATION_ADD_MENU: readonly AssociationAddMenuItem[] = [
+  { pick: { action: "text" }, label: "Text mnemonic", enabled: true },
+  { pick: { action: "image_url" }, label: "Image from URL", enabled: true },
   {
     pick: {
       action: "image_stub",
       contentRef: IMAGE_ASSOCIATION_STUB_REFS.library,
     },
-    label: "Image from library (stub)",
+    label: "Image library",
+    enabled: false,
+    hint: "Coming soon",
   },
   {
     pick: {
       action: "image_stub",
       contentRef: IMAGE_ASSOCIATION_STUB_REFS.upload,
     },
-    label: "Upload image (stub)",
+    label: "Upload image",
+    enabled: false,
+    hint: "Coming soon",
   },
   {
     pick: {
       action: "image_stub",
       contentRef: IMAGE_ASSOCIATION_STUB_REFS.gifLibrary,
     },
-    label: "GIF from library (stub)",
+    label: "GIF library",
+    enabled: false,
+    hint: "Coming soon",
   },
   ...NonTextImageKinds.map((kind) => ({
     pick: { action: "kind_stub" as const, kind },
-    label: KIND_STUB_MENU_LABELS[kind],
+    label: KIND_STUB_MENU_LABELS[kind].replace(" (stub)", ""),
+    enabled: false as const,
+    hint: "Coming soon" as const,
   })),
 ]
 

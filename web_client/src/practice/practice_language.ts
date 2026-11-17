@@ -11,3 +11,15 @@ export function readStoredLanguageId(): string | null {
 export function writeStoredLanguageId(languageId: string): void {
   window.localStorage.setItem(ACTIVE_LANGUAGE_STORAGE_KEY, languageId)
 }
+
+const libraryCaseKey = (languageId: string) => `asu.library_case_id.${languageId}`
+
+export function readStoredLibraryCaseId(languageId: string): string | null {
+  if (typeof window === "undefined") return null
+  const stored = window.localStorage.getItem(libraryCaseKey(languageId))
+  return stored && stored.length > 0 ? stored : null
+}
+
+export function writeStoredLibraryCaseId(languageId: string, caseId: string): void {
+  window.localStorage.setItem(libraryCaseKey(languageId), caseId)
+}

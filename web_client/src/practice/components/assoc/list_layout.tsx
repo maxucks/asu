@@ -24,9 +24,18 @@ type AssocListLayoutProps = {
   readonly addText: ReactNode
   readonly addUrl: ReactNode
   readonly onPick: (action: AssociationAddAction) => void
+  readonly associationTextClassName?: string
 }
 
-export function AssocListLayout({ rows, showAdd, saving, addText, addUrl, onPick }: AssocListLayoutProps) {
+export function AssocListLayout({
+  rows,
+  showAdd,
+  saving,
+  addText,
+  addUrl,
+  onPick,
+  associationTextClassName,
+}: AssocListLayoutProps) {
   return (
     <ul className="grid grid-cols-2 gap-px bg-grid-line">
       {rows.map((row) => {
@@ -48,6 +57,7 @@ export function AssocListLayout({ rows, showAdd, saving, addText, addUrl, onPick
           <li key={row.association.id} className="min-w-0 bg-card">
             <AssocCardLayout
               association={row.association}
+              textClassName={associationTextClassName}
               visible={row.flags.visible}
               canEdit={row.flags.canEdit}
               canHide={row.flags.canHide}
