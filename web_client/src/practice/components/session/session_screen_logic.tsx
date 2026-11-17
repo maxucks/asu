@@ -134,9 +134,14 @@ export function SessionScreenLogic() {
         <AssocTextFormLayout
           intent="edit"
           initialValue={association.contentRef}
+          initialTileColor={association.tileColor}
           saving={session.savingAssociation === "text"}
           onCancel={() => ui.setEditor(null)}
-          onSave={(text) => void ui.saveEditor(() => session.updateTextAssociation(association.id, text))}
+          onSave={(payload) =>
+            void ui.saveEditor(() =>
+              session.updateTextAssociation(association.id, payload.text, payload.tileColor),
+            )
+          }
         />
       ),
       urlEdit: (
@@ -156,7 +161,9 @@ export function SessionScreenLogic() {
       <AssocTextFormLayout
         saving={session.savingAssociation === "text"}
         onCancel={() => ui.setEditor(null)}
-        onSave={(text) => void ui.saveEditor(() => session.addTextAssociation(text))}
+        onSave={(payload) =>
+          void ui.saveEditor(() => session.addTextAssociation(payload.text, payload.tileColor))
+        }
       />
     ) : null
 

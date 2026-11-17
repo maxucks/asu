@@ -1,4 +1,5 @@
 import { singleEmoji } from "@/core/single_emoji"
+import { DEFAULT_ASSOCIATION_TILE_COLOR_ID, isAssociationTileColorId } from "@/practice/association_tile_colors"
 import { PracticeErrorMessages } from "@/practice/practice_errors"
 import { z } from "zod"
 
@@ -46,8 +47,17 @@ const associationImageUrlField = z
     message: PracticeErrorMessages.AssociationInvalidImageUrl,
   })
 
+const associationTileColorField = z
+  .string()
+  .optional()
+  .transform((raw) => {
+    if (raw === undefined) return DEFAULT_ASSOCIATION_TILE_COLOR_ID
+    return isAssociationTileColorId(raw) ? raw : DEFAULT_ASSOCIATION_TILE_COLOR_ID
+  })
+
 export const practiceAssociationTextBodySchema = z.object({
   text: associationTextField,
+  tileColor: associationTileColorField,
 })
 
 export const practiceAssociationImageUrlBodySchema = z.object({

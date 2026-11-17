@@ -225,11 +225,11 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
   )
 
   const addTextAssociation = useCallback(
-    async (text: string) =>
+    async (text: string, tileColor: string | null) =>
       mutateOnCurrentCard("text", (caseId) => {
         const parsed = parseAssociationText(text)
         if (parsed === null) return Promise.resolve(err(PracticeErrAssociationEmptyText))
-        return practiceRepository.appendTextAssociation(caseId, parsed)
+        return practiceRepository.appendTextAssociation(caseId, parsed, tileColor)
       }),
     [mutateOnCurrentCard, practiceRepository],
   )
@@ -245,11 +245,11 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
   )
 
   const updateTextAssociation = useCallback(
-    async (associationId: string, text: string) =>
+    async (associationId: string, text: string, tileColor: string | null) =>
       mutateOnCurrentCard("text", (caseId) => {
         const parsed = parseAssociationText(text)
         if (parsed === null) return Promise.resolve(err(PracticeErrAssociationEmptyText))
-        return practiceRepository.updateTextAssociation(caseId, associationId, parsed)
+        return practiceRepository.updateTextAssociation(caseId, associationId, parsed, tileColor)
       }),
     [mutateOnCurrentCard, practiceRepository],
   )

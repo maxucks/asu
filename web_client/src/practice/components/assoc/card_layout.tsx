@@ -3,6 +3,7 @@ import { AssocImage } from "@/practice/components/assoc/image"
 import { AssocMenu } from "@/practice/components/assoc/menu"
 import { AssocStub } from "@/practice/components/assoc/stub"
 import type { PracticeAssociation } from "@/practice/practice_model"
+import { associationTileColorHex } from "@/practice/association_tile_colors"
 import { imageAssociationStubLabel, isImageAssociationStubRef, isImageAssociationUrl } from "@/practice/practice_utils"
 
 const MEDIA_STUBS: Record<Exclude<PracticeAssociation["kind"], "text" | "image">, string> = {
@@ -29,7 +30,10 @@ type AssocCardLayoutProps = {
 function Body({ association, textClassName }: { readonly association: PracticeAssociation; readonly textClassName: string }) {
   if (association.kind === "text") {
     return (
-      <div className={`flex size-full items-center justify-center p-2 text-center leading-snug text-foreground ${textClassName}`}>
+      <div
+        className={`flex size-full items-center justify-center p-2 text-center leading-snug text-foreground ${textClassName}`}
+        style={{ backgroundColor: associationTileColorHex(association.tileColor) }}
+      >
         {association.contentRef}
       </div>
     )

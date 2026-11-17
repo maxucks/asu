@@ -6,6 +6,7 @@ export type PracticeAssociation = {
   readonly id: string
   readonly kind: AssociationKind
   readonly contentRef: string
+  readonly tileColor: string | null
   readonly sortOrder: number
   readonly createdAt: Date
   readonly hiddenFromPractice: boolean
@@ -16,6 +17,7 @@ export class Association implements PracticeAssociation {
     readonly id: string,
     readonly kind: AssociationKind,
     readonly contentRef: string,
+    readonly tileColor: string | null,
     readonly sortOrder: number,
     readonly createdAt: Date,
     readonly hiddenFromPractice: boolean,
@@ -26,6 +28,7 @@ export class Association implements PracticeAssociation {
       dto.id,
       dto.kind,
       dto.contentRef,
+      dto.tileColor ?? null,
       dto.sortOrder,
       new Date(dto.createdAt),
       dto.hiddenFromPractice,
@@ -33,7 +36,7 @@ export class Association implements PracticeAssociation {
   }
 
   static textStub(caseId: string, text: string, sortOrder: number): Association {
-    return new Association(`${caseId}-assoc-${crypto.randomUUID()}`, "text", text, sortOrder, new Date(), false)
+    return new Association(`${caseId}-assoc-${crypto.randomUUID()}`, "text", text, null, sortOrder, new Date(), false)
   }
 
   static kindStub(caseId: string, kind: AssociationKind, sortOrder: number): Association {
@@ -51,6 +54,7 @@ export class Association implements PracticeAssociation {
       `${caseId}-assoc-${crypto.randomUUID()}`,
       kind,
       contentRef,
+      null,
       sortOrder,
       new Date(),
       hiddenFromPractice,
@@ -58,11 +62,15 @@ export class Association implements PracticeAssociation {
   }
 
   withContentRef(contentRef: string): Association {
-    return new Association(this.id, this.kind, contentRef, this.sortOrder, this.createdAt, this.hiddenFromPractice)
+    return new Association(this.id, this.kind, contentRef, this.tileColor, this.sortOrder, this.createdAt, this.hiddenFromPractice)
+  }
+
+  withTextDetails(contentRef: string, tileColor: string | null): Association {
+    return new Association(this.id, this.kind, contentRef, tileColor, this.sortOrder, this.createdAt, this.hiddenFromPractice)
   }
 
   withHiddenFromPractice(hiddenFromPractice: boolean): Association {
-    return new Association(this.id, this.kind, this.contentRef, this.sortOrder, this.createdAt, hiddenFromPractice)
+    return new Association(this.id, this.kind, this.contentRef, this.tileColor, this.sortOrder, this.createdAt, hiddenFromPractice)
   }
 }
 

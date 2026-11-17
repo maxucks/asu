@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS `associations` (
 	`case_id` text NOT NULL,
 	`kind` text NOT NULL,
 	`content_ref` text NOT NULL,
+	`tile_color` text,
 	`sort_order` integer NOT NULL,
 	`created_at` text NOT NULL,
 	`hidden_from_practice` integer NOT NULL,

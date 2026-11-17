@@ -8,6 +8,7 @@ export type AssociationDto = {
   readonly id: string
   readonly kind: AssociationKind
   readonly contentRef: string
+  readonly tileColor: string | null
   readonly sortOrder: number
   readonly createdAt: string
   readonly hiddenFromPractice: boolean
@@ -97,7 +98,10 @@ export class HttpCaseDataSource {
 
   async appendAssociationDto(caseId: string, association: AssociationDto): Promise<CaseDto> {
     if (association.kind === "text") {
-      return this.postCard(`/api/practice/cases/${caseId}/associations/text`, { text: association.contentRef })
+      return this.postCard(`/api/practice/cases/${caseId}/associations/text`, {
+        text: association.contentRef,
+        tileColor: association.tileColor ?? undefined,
+      })
     }
     if (association.kind === "image") {
       return this.postCard(`/api/practice/cases/${caseId}/associations/image-url`, {
@@ -107,15 +111,16 @@ export class HttpCaseDataSource {
     throw new Error(`Unsupported association kind for API: ${association.kind}`)
   }
 
-  async updateTextAssociationContentRefDto(
+  async updateTextAssociationDto(
     caseId: string,
     associationId: string,
     text: string,
+    tileColor: string | null,
   ): Promise<CaseDto> {
-    return this.patchCard(
-      `/api/practice/cases/${caseId}/associations/${associationId}/text`,
-      { text },
-    )
+    return this.patchCard(`/api/practice/cases/${caseId}/associations/${associationId}/text`, {
+      text,
+      tileColor: tileColor ?? undefined,
+    })
   }
 
   async updateImageAssociationContentRefDto(

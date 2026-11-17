@@ -14,6 +14,7 @@ sqlite.exec("PRAGMA foreign_keys = ON")
 sqlite.exec(sql)
 applyCasesTableMigrations(sqlite)
 applyLanguagesTableMigrations(sqlite)
+applyAssociationsTableMigrations(sqlite)
 sqlite.close()
 
 log.info("schema applied", { database: databaseUrl })
@@ -61,5 +62,21 @@ function applyLanguagesTableMigrations(sqlite: Database) {
   if (!columnNames.has("icon")) {
     sqlite.exec("ALTER TABLE `languages` ADD COLUMN `icon` text DEFAULT '🌐' NOT NULL;")
     log.info("added languages.icon column")
+  }
+}
+
+function applyAssociationsTableMigrations(sqlite: Database) {
+  const tableExists = sqlite
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'associations' LIMIT 1")
+    .get()
+
+  if (!tableExists) return
+
+  const columns = sqlite.prepare("PRAGMA table_info(associations)").all() as SqliteTableColumn[]
+  const columnNames = new Set(columns.map((column) => column.name))
+
+  if (!columnNames.has("tile_color")) {
+    sqlite.exec("ALTER TABLE associations ADD COLUMN tile_color text")
+    log.info("added associations.tile_color column")
   }
 }

@@ -71,6 +71,7 @@ export class PracticeRepository {
   async appendTextAssociation(
     caseId: string,
     text: string,
+    tileColor: string | null,
   ): Promise<Result<PracticeCardDto, PracticeError>> {
     try {
       const existing = await this.caseDataSource.getCaseDtoById(caseId);
@@ -78,6 +79,7 @@ export class PracticeRepository {
         id: `assoc-${crypto.randomUUID()}`,
         kind: "text",
         contentRef: text,
+        tileColor,
         sortOrder: existing.associations.length,
         createdAt: new Date().toISOString(),
         hiddenFromPractice: false,
@@ -102,6 +104,7 @@ export class PracticeRepository {
         id: `assoc-${crypto.randomUUID()}`,
         kind: "image",
         contentRef: url,
+        tileColor: null,
         sortOrder: existing.associations.length,
         createdAt: new Date().toISOString(),
         hiddenFromPractice: false,
@@ -120,6 +123,7 @@ export class PracticeRepository {
     caseId: string,
     associationId: string,
     text: string,
+    tileColor: string | null,
   ): Promise<Result<PracticeCardDto, PracticeError>> {
     try {
       const existing = await this.caseDataSource.getCaseDtoById(caseId);
@@ -131,11 +135,7 @@ export class PracticeRepository {
         return err(PracticeErrAssociationWrongKind);
       }
 
-      const caseDto = await this.caseDataSource.updateTextAssociationContentRefDto(
-        caseId,
-        associationId,
-        text,
-      );
+      const caseDto = await this.caseDataSource.updateTextAssociationDto(caseId, associationId, text, tileColor);
       return ok(PracticeRepository.caseDtoToPracticeCard(caseDto));
     } catch (thrown) {
       return err(practiceAssociationErrorFromThrown(thrown));

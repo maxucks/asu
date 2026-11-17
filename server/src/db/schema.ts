@@ -28,6 +28,7 @@ export const associations = sqliteTable(
       .references(() => cases.id, { onDelete: "cascade" }),
     kind: text("kind").notNull(),
     contentRef: text("content_ref").notNull(),
+    tileColor: text("tile_color"),
     sortOrder: integer("sort_order").notNull(),
     createdAt: text("created_at").notNull(),
     hiddenFromPractice: integer("hidden_from_practice", { mode: "boolean" }).notNull(),

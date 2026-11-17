@@ -9,6 +9,7 @@ export type AssociationDto = {
   readonly id: string
   readonly kind: AssociationKind
   readonly contentRef: string
+  readonly tileColor: string | null
   readonly sortOrder: number
   readonly createdAt: string
   readonly hiddenFromPractice: boolean
@@ -28,6 +29,7 @@ function mapAssociationRow(row: typeof associations.$inferSelect): AssociationDt
     id: row.id,
     kind: row.kind as AssociationKind,
     contentRef: row.contentRef,
+    tileColor: row.tileColor ?? null,
     sortOrder: row.sortOrder,
     createdAt: row.createdAt,
     hiddenFromPractice: row.hiddenFromPractice,
@@ -128,6 +130,7 @@ export class DrizzleCaseDataSource {
       caseId,
       kind: association.kind,
       contentRef: association.contentRef,
+      tileColor: association.tileColor,
       sortOrder: association.sortOrder,
       createdAt: association.createdAt,
       hiddenFromPractice: association.hiddenFromPractice,
@@ -135,12 +138,22 @@ export class DrizzleCaseDataSource {
     return loadCaseDto(caseId)
   }
 
-  async updateTextAssociationContentRefDto(
+  async updateTextAssociationDto(
     caseId: string,
     associationId: string,
-    text: string,
+    patch: { readonly text: string; readonly tileColor: string | null },
   ): Promise<CaseDto> {
-    return this.setAssociationContentRef(caseId, associationId, text)
+    const updated = await db
+      .update(associations)
+      .set({ contentRef: patch.text, tileColor: patch.tileColor })
+      .where(eq(associations.id, associationId))
+      .returning({ id: associations.id })
+
+    if (updated.length === 0) {
+      throw new Error(`Association not found: ${associationId}`)
+    }
+
+    return loadCaseDto(caseId)
   }
 
   async updateImageAssociationContentRefDto(

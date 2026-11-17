@@ -148,7 +148,11 @@ export function createPracticeRoutes(repository: PracticeRepository) {
       return error(c, body.error, practiceErrorHttpStatus(body.error.code))
     }
 
-    const result = await repository.appendTextAssociation(params.value.caseId, body.value.text)
+    const result = await repository.appendTextAssociation(
+      params.value.caseId,
+      body.value.text,
+      body.value.tileColor,
+    )
     if (!result.ok) {
       return error(c, result.error, practiceErrorHttpStatus(result.error.code))
     }
@@ -186,6 +190,7 @@ export function createPracticeRoutes(repository: PracticeRepository) {
       params.value.caseId,
       params.value.associationId,
       body.value.text,
+      body.value.tileColor,
     )
     if (!result.ok) {
       return error(c, result.error, practiceErrorHttpStatus(result.error.code))

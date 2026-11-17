@@ -84,11 +84,11 @@ export function useCaseDetailController(
   }, [card.id, onDeleted, repo])
 
   const addTextAssociation = useCallback(
-    async (text: string) =>
+    async (text: string, tileColor: string | null) =>
       mutateAssociation("text", () => {
         const parsed = parseAssociationText(text)
         if (parsed === null) return Promise.resolve(err(PracticeErrAssociationEmptyText))
-        return repo.appendTextAssociation(card.id, parsed)
+        return repo.appendTextAssociation(card.id, parsed, tileColor)
       }),
     [card.id, mutateAssociation, repo],
   )
@@ -104,11 +104,11 @@ export function useCaseDetailController(
   )
 
   const updateTextAssociation = useCallback(
-    async (associationId: string, text: string) =>
+    async (associationId: string, text: string, tileColor: string | null) =>
       mutateAssociation("text", () => {
         const parsed = parseAssociationText(text)
         if (parsed === null) return Promise.resolve(err(PracticeErrAssociationEmptyText))
-        return repo.updateTextAssociation(card.id, associationId, parsed)
+        return repo.updateTextAssociation(card.id, associationId, parsed, tileColor)
       }),
     [card.id, mutateAssociation, repo],
   )

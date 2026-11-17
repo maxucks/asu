@@ -1,5 +1,6 @@
 import type { AssociationDto } from "@/core/data_sources/http_case_data_source"
 import { AssocImage } from "@/practice/components/assoc/image"
+import { associationTileColorHex } from "@/practice/association_tile_colors"
 import { isImageAssociationUrl } from "@/practice/practice_utils"
 
 export function CaseLibraryAssocPreview({ association }: { readonly association: AssociationDto | null }) {
@@ -9,7 +10,10 @@ export function CaseLibraryAssocPreview({ association }: { readonly association:
 
   if (association.kind === "text") {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-tile px-1 text-center text-sm leading-tight text-foreground">
+      <div
+        className="flex h-full w-full items-center justify-center px-1 text-center text-sm leading-tight text-foreground"
+        style={{ backgroundColor: associationTileColorHex(association.tileColor) }}
+      >
         <span className="line-clamp-4">{association.contentRef}</span>
       </div>
     )

@@ -36,9 +36,14 @@ export function CaseLibraryDetail({ card, repo, onCardChange, onDeleted }: CaseL
         <AssocTextFormLayout
           intent="edit"
           initialValue={association.contentRef}
+          initialTileColor={association.tileColor}
           saving={detail.savingAssociation === "text"}
           onCancel={() => ui.setEditor(null)}
-          onSave={(text) => void ui.saveEditor(() => detail.updateTextAssociation(association.id, text))}
+          onSave={(payload) =>
+            void ui.saveEditor(() =>
+              detail.updateTextAssociation(association.id, payload.text, payload.tileColor),
+            )
+          }
         />
       ),
       urlEdit: (
@@ -58,7 +63,9 @@ export function CaseLibraryDetail({ card, repo, onCardChange, onDeleted }: CaseL
       <AssocTextFormLayout
         saving={detail.savingAssociation === "text"}
         onCancel={() => ui.setEditor(null)}
-        onSave={(text) => void ui.saveEditor(() => detail.addTextAssociation(text))}
+        onSave={(payload) =>
+          void ui.saveEditor(() => detail.addTextAssociation(payload.text, payload.tileColor))
+        }
       />
     ) : null
 
