@@ -72,6 +72,21 @@ export function associationKindLabel(kind: AssociationKind): string {
 
 export type AssociationComposeMode = "text" | "image_url"
 
+export function reorderAssociationIds(
+  ids: readonly string[],
+  activeId: string,
+  overId: string,
+): readonly string[] | null {
+  if (activeId === overId) return null
+  const from = ids.indexOf(activeId)
+  const to = ids.indexOf(overId)
+  if (from < 0 || to < 0) return null
+  const next = [...ids]
+  next.splice(from, 1)
+  next.splice(to, 0, activeId)
+  return next
+}
+
 export type AssociationAddAction =
   | { readonly action: "text" }
   | { readonly action: "image_url" }

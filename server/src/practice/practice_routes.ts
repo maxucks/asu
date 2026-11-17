@@ -5,12 +5,15 @@ import { practiceErrorHttpStatus } from "@/practice/practice_errors"
 import {
   practiceAssociationHiddenBodySchema,
   practiceAssociationImageUrlBodySchema,
+  practiceAssociationOrderBodySchema,
   practiceAssociationTextBodySchema,
+  practiceGradeBodySchema,
   practiceCaseAssociationParamsSchema,
   practiceCaseIdParamsSchema,
   practiceCreateCaseBodySchema,
   practiceCreateLanguageBodySchema,
   practiceLanguageIdParamsSchema,
+  practiceNextCardQuerySchema,
   practiceQueueQuerySchema,
   practiceUpdateLanguageBodySchema,
   practiceUpdateCaseBodySchema,
@@ -49,6 +52,23 @@ export function createPracticeRoutes(repository: PracticeRepository) {
       return error(c, result.error, practiceErrorHttpStatus(result.error.code))
     }
     return ok(c, result.value)
+  })
+
+  routes.post("/cases/:caseId/grade", async (c) => {
+    const params = parseRouteParams(c.req.param(), practiceCaseIdParamsSchema)
+    if (!params.ok) {
+      return error(c, params.error, practiceErrorHttpStatus(params.error.code))
+    }
+    const body = await parseJsonBody(c, practiceGradeBodySchema)
+    if (!body.ok) {
+      return error(c, body.error, practiceErrorHttpStatus(body.error.code))
+    }
+
+    const result = await repository.submitGrade(params.value.caseId, body.value.grade)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return noContent(c)
   })
 
   routes.delete("/cases/:caseId", async (c) => {
@@ -138,6 +158,33 @@ export function createPracticeRoutes(repository: PracticeRepository) {
     return ok(c, result.value)
   })
 
+  routes.get("/session", async (c) => {
+    const query = parseQuery(c.req.query(), practiceQueueQuerySchema)
+    if (!query.ok) {
+      return error(c, query.error, practiceErrorHttpStatus(query.error.code))
+    }
+    const result = await repository.startPracticeSession(query.value.languageId)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return ok(c, result.value)
+  })
+
+  routes.get("/next", async (c) => {
+    const query = parseQuery(c.req.query(), practiceNextCardQuerySchema)
+    if (!query.ok) {
+      return error(c, query.error, practiceErrorHttpStatus(query.error.code))
+    }
+    const result = await repository.pickNextPracticeCard(
+      query.value.languageId,
+      query.value.excludeCaseId ?? null,
+    )
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return ok(c, result.value)
+  })
+
   routes.post("/cases/:caseId/associations/text", async (c) => {
     const params = parseRouteParams(c.req.param(), practiceCaseIdParamsSchema)
     if (!params.ok) {
@@ -213,6 +260,23 @@ export function createPracticeRoutes(repository: PracticeRepository) {
       params.value.associationId,
       body.value.url,
     )
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return ok(c, result.value)
+  })
+
+  routes.patch("/cases/:caseId/associations/order", async (c) => {
+    const params = parseRouteParams(c.req.param(), practiceCaseIdParamsSchema)
+    if (!params.ok) {
+      return error(c, params.error, practiceErrorHttpStatus(params.error.code))
+    }
+    const body = await parseJsonBody(c, practiceAssociationOrderBodySchema)
+    if (!body.ok) {
+      return error(c, body.error, practiceErrorHttpStatus(body.error.code))
+    }
+
+    const result = await repository.reorderAssociations(params.value.caseId, body.value.associationIds)
     if (!result.ok) {
       return error(c, result.error, practiceErrorHttpStatus(result.error.code))
     }

@@ -21,11 +21,13 @@ export function CaseLibraryDetail({ card, repo, onCardChange, onDeleted }: CaseL
   const ui = useCaseDetailUi(detail)
 
   const showAdd = ui.editor === null && !ui.editingCase
+  const associationSortable = showAdd && !ui.editingCase
 
   const rows: AssocRow[] = detail.card.associations.map((association) => {
     const flags = assocLibraryFlags(association, ui.editor, detail.revealedHiddenAssociationIds)
     return {
       association,
+      sortable: true,
       flags,
       onEdit: () => ui.startAssocEdit(association),
       onHide: () => void detail.setAssociationHidden(association.id, true),
@@ -100,6 +102,8 @@ export function CaseLibraryDetail({ card, repo, onCardChange, onDeleted }: CaseL
           onEditCase={ui.startCaseEdit}
           onDeleteCase={() => ui.setPendingCaseDelete(true)}
           onPick={ui.pickAssoc}
+          sortable={associationSortable}
+          onReorder={(ids) => void detail.reorderAssociations(ids)}
         />
       </div>
       <ConfirmBox

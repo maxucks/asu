@@ -5,6 +5,7 @@ import type {
   CaseDto,
   PracticeCardDto,
   PracticeQueueDto,
+  PracticeSessionDto,
 } from "@/core/data_sources/http_case_data_source";
 import type { HttpCaseDataSource } from "@/core/data_sources/http_case_data_source";
 import type { HttpLanguageDataSource } from "@/core/data_sources/http_language_data_source";
@@ -19,7 +20,11 @@ import {
   type PracticeError,
 } from "@/practice/practice_errors";
 
-export type { PracticeCardDto, PracticeQueueDto } from "@/core/data_sources/http_case_data_source";
+export type {
+  PracticeCardDto,
+  PracticeQueueDto,
+  PracticeSessionDto,
+} from "@/core/data_sources/http_case_data_source";
 export type { LanguageDto } from "@/core/data_sources/http_language_data_source";
 
 export const PracticeGrades = ["hard", "medium", "easy"] as const;
@@ -185,6 +190,29 @@ export class PracticeRepository {
     }
   }
 
+  async reorderAssociations(
+    caseId: string,
+    associationIds: readonly string[],
+  ): Promise<Result<PracticeCardDto, PracticeError>> {
+    try {
+      const existing = await this.caseDataSource.getCaseDtoById(caseId)
+      const onCard = new Set(existing.associations.map((item) => item.id))
+      if (associationIds.length !== onCard.size) {
+        return err(PracticeErrAssociationNotOnCard);
+      }
+      for (const id of associationIds) {
+        if (!onCard.has(id)) {
+          return err(PracticeErrAssociationNotOnCard);
+        }
+      }
+
+      const caseDto = await this.caseDataSource.reorderAssociationsDto(caseId, associationIds);
+      return ok(PracticeRepository.caseDtoToPracticeCard(caseDto));
+    } catch (thrown) {
+      return err(practiceAssociationErrorFromThrown(thrown));
+    }
+  }
+
   async deleteAssociation(
     caseId: string,
     associationId: string,
@@ -197,6 +225,15 @@ export class PracticeRepository {
       return ok(PracticeRepository.caseDtoToPracticeCard(caseDto));
     } catch (thrown) {
       return err(practiceAssociationErrorFromThrown(thrown));
+    }
+  }
+
+  async submitGrade(caseId: string, grade: PracticeGradeDto): Promise<Result<void, PracticeError>> {
+    try {
+      await this.caseDataSource.submitGradeDto(caseId, grade);
+      return ok(undefined);
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown));
     }
   }
 
@@ -213,6 +250,25 @@ export class PracticeRepository {
     try {
       const queue = await this.caseDataSource.fetchPracticeQueue(languageId);
       return ok(queue);
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
+
+  async startPracticeSession(languageId: string): Promise<Result<PracticeSessionDto, PracticeError>> {
+    try {
+      return ok(await this.caseDataSource.fetchPracticeSession(languageId));
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
+
+  async pickNextPracticeCard(
+    languageId: string,
+    excludeCaseId: string | null,
+  ): Promise<Result<PracticeSessionDto, PracticeError>> {
+    try {
+      return ok(await this.caseDataSource.pickNextPracticeCard(languageId, excludeCaseId));
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown));
     }

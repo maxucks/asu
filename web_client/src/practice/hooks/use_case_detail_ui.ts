@@ -19,7 +19,7 @@ export function useCaseDetailUi(detail: CaseDetailController) {
   const [lemmaDraft, setLemmaDraft] = useState("")
   const [meaningDraft, setMeaningDraft] = useState("")
 
-  const saving = detail.savingAssociation !== null
+  const saving = detail.savingAssociation !== null || detail.reorderingAssociations
   const adding = editor?.intent === "add" && (editor.mode === "text" || editor.mode === "image_url")
   const caseSaving = detail.caseBusy === "update"
 

@@ -1,6 +1,7 @@
 import { singleEmoji } from "@/core/single_emoji"
 import { DEFAULT_ASSOCIATION_TILE_COLOR_ID, isAssociationTileColorId } from "@/practice/association_tile_colors"
 import { PracticeErrorMessages } from "@/practice/practice_errors"
+import { PracticeGrades } from "@/practice/practice_repository"
 import { z } from "zod"
 
 function parseAssociationText(raw: string): string | null {
@@ -68,6 +69,14 @@ export const practiceAssociationHiddenBodySchema = z.object({
   hiddenFromPractice: z.boolean(),
 })
 
+export const practiceAssociationOrderBodySchema = z.object({
+  associationIds: z.array(routeId).min(1, "At least one association id is required."),
+})
+
+export const practiceGradeBodySchema = z.object({
+  grade: z.enum(PracticeGrades),
+})
+
 const caseLemmaField = z
   .string()
   .transform((raw) => raw.trim())
@@ -91,6 +100,11 @@ export const practiceLanguageIdParamsSchema = z.object({
 
 export const practiceQueueQuerySchema = z.object({
   languageId: routeId,
+})
+
+export const practiceNextCardQuerySchema = z.object({
+  languageId: routeId,
+  excludeCaseId: routeId.optional(),
 })
 
 export const practiceCreateLanguageBodySchema = z.object({

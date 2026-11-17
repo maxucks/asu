@@ -200,6 +200,30 @@ export class DrizzleCaseDataSource {
     return loadCaseDto(caseId)
   }
 
+  async reorderAssociationsDto(caseId: string, associationIds: readonly string[]): Promise<CaseDto> {
+    const assocRows = await db
+      .select({ id: associations.id })
+      .from(associations)
+      .where(eq(associations.caseId, caseId))
+
+    const existingIds = new Set(assocRows.map((row) => row.id))
+    if (associationIds.length !== existingIds.size) {
+      throw new Error("Association order invalid")
+    }
+    for (const id of associationIds) {
+      if (!existingIds.has(id)) {
+        throw new Error("Association order invalid")
+      }
+    }
+
+    for (let index = 0; index < associationIds.length; index += 1) {
+      const associationId = associationIds[index]!
+      await db.update(associations).set({ sortOrder: index }).where(eq(associations.id, associationId))
+    }
+
+    return loadCaseDto(caseId)
+  }
+
   async deleteAssociationDto(caseId: string, associationId: string): Promise<CaseDto> {
     const deleted = await db
       .delete(associations)

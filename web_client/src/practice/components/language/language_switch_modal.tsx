@@ -56,6 +56,9 @@ export function LanguageSwitchModal({ open, activeLanguageId, repo, onClose, onS
 
   if (!open) return null
 
+  const activeLanguage = languages.find((language) => language.id === activeLanguageId)
+  const totalCasesAll = languages.reduce((sum, language) => sum + language.caseCount, 0)
+
   async function saveIcon(languageId: string, raw: string) {
     const icon = singleEmoji(raw)
     if (icon.length === 0) {
@@ -159,7 +162,15 @@ export function LanguageSwitchModal({ open, activeLanguageId, repo, onClose, onS
       >
         <div className="border-b border-grid-line px-5 py-4">
           <h2 className="text-lg font-semibold text-foreground">Languages</h2>
-          <p className="mt-1 text-sm text-muted">Tap an icon to change it. Delete only when no entries remain.</p>
+          <p className="mt-1 text-sm text-muted">
+            {loading
+              ? "Loading…"
+              : `${totalCasesAll} ${totalCasesAll === 1 ? "case" : "cases"} total`}
+            {activeLanguage && !loading
+              ? ` · ${activeLanguage.caseCount} in ${activeLanguage.name}`
+              : ""}
+          </p>
+          <p className="mt-1 text-xs text-muted">Tap an icon to change it. Delete only when no entries remain.</p>
         </div>
 
         <ul className="scrollbar-hidden flex-1 overflow-y-auto divide-y divide-grid-line">

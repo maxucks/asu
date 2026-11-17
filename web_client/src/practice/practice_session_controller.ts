@@ -34,6 +34,7 @@ import {
   isPracticeSessionReadyViewState,
   mergeVisibleAssociations,
   selectCurrentCard,
+  selectCurrentCaseId,
   selectFrontCaseId,
   type PracticeSessionViewState,
 } from "@/practice/practice_session_view_state"
@@ -48,6 +49,8 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
   const [deletingAssociationId, setDeletingAssociationId] = useState<string | null>(null)
   const [vocabularyBusyCaseId, setVocabularyBusyCaseId] = useState<string | "create" | null>(null)
   const [deletingCaseId, setDeletingCaseId] = useState<string | null>(null)
+  const [reorderingAssociations, setReorderingAssociations] = useState(false)
+  const [gradingCase, setGradingCase] = useState(false)
   const stateRef = useRef(state)
   stateRef.current = state
 
@@ -56,16 +59,32 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
 
     async function load() {
       setState(createPracticeSessionViewStateLoading())
-      const result = await practiceRepository.getQueue(languageId)
+      const [listResult, sessionResult] = await Promise.all([
+        practiceRepository.listCases(languageId),
+        practiceRepository.startPracticeSession(languageId),
+      ])
       if (cancelled) return
 
-      if (!result.ok) {
-        setState(createPracticeSessionViewStateError(result.error))
+      if (!listResult.ok) {
+        setState(createPracticeSessionViewStateError(listResult.error))
         return
       }
 
-      const cards = result.value.cards.map((dto) => PracticeCard.fromDto(dto))
-      setState(createPracticeSessionViewStateReady(cards))
+      if (!sessionResult.ok) {
+        setState(createPracticeSessionViewStateError(sessionResult.error))
+        return
+      }
+
+      let cards = listResult.value.cards.map((dto) => PracticeCard.fromDto(dto))
+      let cardIndex = cards.findIndex((card) => card.id === sessionResult.value.card.id)
+      if (cardIndex < 0) {
+        cards = [...cards, PracticeCard.fromDto(sessionResult.value.card)]
+        cardIndex = cards.length - 1
+      }
+
+      setState(
+        createPracticeSessionViewStateReady(cards, cardIndex, "front", [], [], 0, sessionResult.value.totalCases),
+      )
     }
 
     void load()
@@ -127,14 +146,53 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
     })
   }, [])
 
-  const submitGrade = useCallback((grade: PracticeGradeDto) => {
-    if (!isPracticeGrade(grade)) return
+  const submitGrade = useCallback(
+    async (grade: PracticeGradeDto) => {
+      if (!isPracticeGrade(grade)) return
 
-    setState((prev) => {
-      if (!isPracticeSessionReadyViewState(prev) || prev.phase !== "back") return prev
-      return createPracticeSessionViewStateAfterGrade(prev)
-    })
-  }, [])
+      const ready = stateRef.current
+      if (!isPracticeSessionReadyViewState(ready) || ready.phase !== "back") return
+
+      const caseId = selectCurrentCaseId(ready)
+      if (!caseId) return
+
+      setGradingCase(true)
+      const result = await practiceRepository.submitGrade(caseId, grade)
+      setGradingCase(false)
+
+      if (!result.ok) {
+        setState(createPracticeSessionViewStateError(result.error))
+        return
+      }
+
+      const next = await practiceRepository.pickNextPracticeCard(languageId, caseId)
+      if (!next.ok) {
+        setState(createPracticeSessionViewStateError(next.error))
+        return
+      }
+
+      setState((prev) => {
+        if (!isPracticeSessionReadyViewState(prev) || prev.phase !== "back") return prev
+
+        const nextCard = PracticeCard.fromDto(next.value.card)
+        let cards = prev.cards
+        let cardIndex = cards.findIndex((card) => card.id === nextCard.id)
+        if (cardIndex < 0) {
+          cards = [...cards, nextCard]
+          cardIndex = cards.length - 1
+        } else {
+          cards = cards.map((card, index) => (index === cardIndex ? nextCard : card))
+        }
+
+        return createPracticeSessionViewStateAfterGrade(
+          { ...prev, cards },
+          cardIndex,
+          next.value.totalCases,
+        )
+      })
+    },
+    [languageId, practiceRepository],
+  )
 
   const toggleRevealHiddenAssociation = useCallback((associationId: string) => {
     setState((prev) => {
@@ -174,6 +232,8 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
               prev.phase,
               prev.sessionAssociations,
               revealed,
+              prev.passedCount,
+              prev.totalCases,
             )
           })
         }
@@ -194,6 +254,8 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
           patched.phase,
           patched.sessionAssociations,
           revealed,
+          patched.passedCount,
+          patched.totalCases,
         )
       })
       return true
@@ -264,20 +326,36 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
     [mutateOnCurrentCard, practiceRepository],
   )
 
+  const reorderAssociations = useCallback(
+    async (associationIds: readonly string[]) => {
+      setReorderingAssociations(true)
+      const ok = await runOnCurrentCard((caseId) =>
+        practiceRepository.reorderAssociations(caseId, associationIds),
+      )
+      setReorderingAssociations(false)
+      return ok
+    },
+    [runOnCurrentCard, practiceRepository],
+  )
+
   const reloadQueue = useCallback(async (): Promise<boolean> => {
-    const result = await practiceRepository.getQueue(languageId)
+    const result = await practiceRepository.listCases(languageId)
     if (!result.ok) {
       setState(createPracticeSessionViewStateError(result.error))
       return false
     }
 
     const cards = result.value.cards.map((dto) => PracticeCard.fromDto(dto))
+    const totalCases = cards.length
 
     setState((prev) => {
       if (!isPracticeSessionReadyViewState(prev)) {
-        return createPracticeSessionViewStateReady(cards)
+        if (totalCases === 0) {
+          return createPracticeSessionViewStateReady([], 0, "front", [], [], 0, 0)
+        }
+        return createPracticeSessionViewStateReady(cards, 0, "front", [], [], 0, totalCases)
       }
-      return createPracticeSessionViewStateAfterVocabularyReload(prev, cards)
+      return createPracticeSessionViewStateAfterVocabularyReload(prev, cards, totalCases)
     })
     return true
   }, [practiceRepository, languageId])
@@ -368,7 +446,10 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
     toggleRevealHiddenAssociation,
     setAssociationHidden,
     deleteAssociation,
+    reorderAssociations,
     savingAssociation,
+    reorderingAssociations,
+    gradingCase,
     deletingAssociationId,
     caseBusy: vocabularyBusyCaseId,
     deletingCaseId,

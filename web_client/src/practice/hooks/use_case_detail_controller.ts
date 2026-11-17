@@ -25,6 +25,7 @@ export function useCaseDetailController(
   const [savingAssociation, setSavingAssociation] = useState<AssociationComposeMode | null>(null)
   const [caseBusy, setCaseBusy] = useState<false | "update" | "delete">(false)
   const [deletingAssociationId, setDeletingAssociationId] = useState<string | null>(null)
+  const [reorderingAssociations, setReorderingAssociations] = useState(false)
   const [revealedHiddenAssociationIds, setRevealedHiddenAssociationIds] = useState<readonly string[]>([])
 
   useEffect(() => {
@@ -146,6 +147,16 @@ export function useCaseDetailController(
     [card.id, repo, runMutation],
   )
 
+  const reorderAssociations = useCallback(
+    async (associationIds: readonly string[]) => {
+      setReorderingAssociations(true)
+      const okResult = await runMutation(() => repo.reorderAssociations(card.id, associationIds))
+      setReorderingAssociations(false)
+      return okResult
+    },
+    [card.id, repo, runMutation],
+  )
+
   const toggleRevealHiddenAssociation = useCallback((associationId: string) => {
     setRevealedHiddenAssociationIds((ids) =>
       ids.includes(associationId) ? ids.filter((id) => id !== associationId) : [...ids, associationId],
@@ -166,6 +177,8 @@ export function useCaseDetailController(
     updateImageAssociationFromUrl,
     setAssociationHidden,
     deleteAssociation,
+    reorderAssociations,
+    reorderingAssociations,
     toggleRevealHiddenAssociation,
   }
 }

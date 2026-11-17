@@ -15,6 +15,7 @@ sqlite.exec(sql)
 applyCasesTableMigrations(sqlite)
 applyLanguagesTableMigrations(sqlite)
 applyAssociationsTableMigrations(sqlite)
+applyStudyRecordsTableMigrations(sqlite)
 sqlite.close()
 
 log.info("schema applied", { database: databaseUrl })
@@ -78,5 +79,33 @@ function applyAssociationsTableMigrations(sqlite: Database) {
   if (!columnNames.has("tile_color")) {
     sqlite.exec("ALTER TABLE associations ADD COLUMN tile_color text")
     log.info("added associations.tile_color column")
+  }
+}
+
+function applyStudyRecordsTableMigrations(sqlite: Database) {
+  const tableExists = sqlite
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'study_records' LIMIT 1")
+    .get()
+
+  if (!tableExists) return
+
+  const columns = sqlite.prepare("PRAGMA table_info(study_records)").all() as SqliteTableColumn[]
+  const columnNames = new Set(columns.map((column) => column.name))
+
+  if (!columnNames.has("scheduling_strength_numeric")) {
+    sqlite.exec("ALTER TABLE study_records ADD COLUMN scheduling_strength_numeric integer NOT NULL DEFAULT 0")
+    log.info("added study_records.scheduling_strength_numeric column")
+  }
+  if (!columnNames.has("repetitions_count")) {
+    sqlite.exec("ALTER TABLE study_records ADD COLUMN repetitions_count integer NOT NULL DEFAULT 0")
+    log.info("added study_records.repetitions_count column")
+  }
+  if (!columnNames.has("last_repetition_at")) {
+    sqlite.exec("ALTER TABLE study_records ADD COLUMN last_repetition_at text")
+    log.info("added study_records.last_repetition_at column")
+  }
+  if (!columnNames.has("last_grade_numeric")) {
+    sqlite.exec("ALTER TABLE study_records ADD COLUMN last_grade_numeric integer")
+    log.info("added study_records.last_grade_numeric column")
   }
 }

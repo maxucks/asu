@@ -22,7 +22,7 @@ export function useSessionUi(session: Session) {
   const [lemmaDraft, setLemmaDraft] = useState("")
   const [meaningDraft, setMeaningDraft] = useState("")
 
-  const saving = session.savingAssociation !== null
+  const saving = session.savingAssociation !== null || session.reorderingAssociations
   const adding = editor?.intent === "add" && (editor.mode === "text" || editor.mode === "image_url")
   const caseSaving = session.caseBusy !== null && session.caseBusy !== "create"
 

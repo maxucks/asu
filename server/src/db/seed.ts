@@ -204,21 +204,45 @@ const SEED_CASES: readonly CaseDto[] = [
 ] as const satisfies readonly CaseDto[]
 
 const SEED_STUDY_RECORDS: readonly StudyRecordDto[] = [
-  { caseId: "case-1", reviewStatus: "repeating", dueAt: "2026-03-10T09:00:00.000Z" },
-  { caseId: "case-2", reviewStatus: "learning", dueAt: "2026-03-10T09:05:00.000Z" },
-  { caseId: "case-3", reviewStatus: "learning", dueAt: "2026-03-10T09:10:00.000Z" },
-  { caseId: "case-4", reviewStatus: "new", dueAt: null },
-  { caseId: "case-5", reviewStatus: "new", dueAt: null },
-  { caseId: "case-6", reviewStatus: "new", dueAt: null },
-  { caseId: "case-7", reviewStatus: "new", dueAt: null },
-  { caseId: "case-8", reviewStatus: "new", dueAt: null },
-  { caseId: "case-9", reviewStatus: "new", dueAt: null },
-  { caseId: "case-10", reviewStatus: "new", dueAt: null },
-  { caseId: "case-11", reviewStatus: "new", dueAt: null },
-  { caseId: "case-12", reviewStatus: "new", dueAt: null },
-  { caseId: "case-13", reviewStatus: "new", dueAt: null },
-  { caseId: "case-14", reviewStatus: "new", dueAt: null },
-] as const satisfies readonly StudyRecordDto[]
+  {
+    caseId: "case-1",
+    reviewStatus: "repeating",
+    dueAt: "2026-03-10T09:00:00.000Z",
+    schedulingStrengthNumeric: 3,
+    repetitionsCount: 5,
+    lastRepetitionAt: "2026-03-08T09:00:00.000Z",
+    lastGradeNumeric: 1,
+  },
+  {
+    caseId: "case-2",
+    reviewStatus: "learning",
+    dueAt: "2026-03-10T09:05:00.000Z",
+    schedulingStrengthNumeric: 0,
+    repetitionsCount: 1,
+    lastRepetitionAt: "2026-03-10T08:55:00.000Z",
+    lastGradeNumeric: 1,
+  },
+  {
+    caseId: "case-3",
+    reviewStatus: "learning",
+    dueAt: "2026-03-10T09:10:00.000Z",
+    schedulingStrengthNumeric: 0,
+    repetitionsCount: 1,
+    lastRepetitionAt: "2026-03-10T09:00:00.000Z",
+    lastGradeNumeric: 2,
+  },
+  ...["case-4", "case-5", "case-6", "case-7", "case-8", "case-9", "case-10", "case-11", "case-12", "case-13", "case-14"].map(
+    (caseId): StudyRecordDto => ({
+      caseId,
+      reviewStatus: "new",
+      dueAt: null,
+      schedulingStrengthNumeric: 0,
+      repetitionsCount: 0,
+      lastRepetitionAt: null,
+      lastGradeNumeric: null,
+    }),
+  ),
+]
 
 const DEFAULT_LANGUAGE_ID = "lang-english"
 
@@ -241,6 +265,10 @@ async function seed() {
       caseId: record.caseId,
       reviewStatus: record.reviewStatus,
       dueAt: record.dueAt,
+      schedulingStrengthNumeric: record.schedulingStrengthNumeric,
+      repetitionsCount: record.repetitionsCount,
+      lastRepetitionAt: record.lastRepetitionAt,
+      lastGradeNumeric: record.lastGradeNumeric,
     })
   }
 

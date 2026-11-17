@@ -11,6 +11,8 @@ export type PracticeSessionReadyViewState = {
   readonly phase: PracticeSessionPhase
   readonly sessionAssociations: readonly Association[]
   readonly revealedHiddenAssociationIds: readonly string[]
+  readonly passedCount: number
+  readonly totalCases: number
 }
 
 export type PracticeSessionViewState =
@@ -43,6 +45,8 @@ export function createPracticeSessionViewStateReady(
   phase: PracticeSessionPhase = "front",
   sessionAssociations: readonly Association[] = [],
   revealedHiddenAssociationIds: readonly string[] = [],
+  passedCount = 0,
+  totalCases?: number,
 ): PracticeSessionReadyViewState {
   return {
     status: "ready",
@@ -51,6 +55,8 @@ export function createPracticeSessionViewStateReady(
     phase,
     sessionAssociations,
     revealedHiddenAssociationIds,
+    passedCount,
+    totalCases: totalCases ?? cards.length,
   }
 }
 
@@ -63,17 +69,25 @@ export function createPracticeSessionViewStateReadyRevealed(
     "back",
     ready.sessionAssociations,
     ready.revealedHiddenAssociationIds,
+    ready.passedCount,
+    ready.totalCases,
   )
 }
 
 export function createPracticeSessionViewStateAfterGrade(
   ready: PracticeSessionReadyViewState,
-): PracticeSessionViewState {
-  const nextIndex = ready.cardIndex + 1
-  if (nextIndex >= ready.cards.length) {
-    return createPracticeSessionViewStateFinished()
-  }
-  return createPracticeSessionViewStateReady(ready.cards, nextIndex, "front")
+  nextCardIndex: number,
+  totalCases: number,
+): PracticeSessionReadyViewState {
+  return createPracticeSessionViewStateReady(
+    ready.cards,
+    nextCardIndex,
+    "front",
+    [],
+    [],
+    ready.passedCount + 1,
+    totalCases,
+  )
 }
 
 export function createPracticeSessionViewStateWithAssociation(
@@ -86,6 +100,8 @@ export function createPracticeSessionViewStateWithAssociation(
     ready.phase,
     [...ready.sessionAssociations, association],
     ready.revealedHiddenAssociationIds,
+    ready.passedCount,
+    ready.totalCases,
   )
 }
 
@@ -101,15 +117,18 @@ export function createPracticeSessionViewStateWithReplacedCard(
     ready.phase,
     ready.sessionAssociations,
     ready.revealedHiddenAssociationIds,
+    ready.passedCount,
+    ready.totalCases,
   )
 }
 
 export function createPracticeSessionViewStateAfterVocabularyReload(
   ready: PracticeSessionReadyViewState,
   cards: readonly PracticeCard[],
+  totalCases: number,
 ): PracticeSessionViewState {
   if (cards.length === 0) {
-    return createPracticeSessionViewStateReady([])
+    return createPracticeSessionViewStateReady([], 0, "front", [], [], ready.passedCount, 0)
   }
 
   const activeId = ready.cards[ready.cardIndex]?.id
@@ -118,7 +137,15 @@ export function createPracticeSessionViewStateAfterVocabularyReload(
     cardIndex = Math.min(ready.cardIndex, cards.length - 1)
   }
 
-  return createPracticeSessionViewStateReady(cards, cardIndex, "front")
+  return createPracticeSessionViewStateReady(
+    cards,
+    cardIndex,
+    ready.phase,
+    ready.sessionAssociations,
+    ready.revealedHiddenAssociationIds,
+    ready.passedCount,
+    totalCases,
+  )
 }
 
 export function createPracticeSessionViewStateWithToggledRevealedHidden(
@@ -135,6 +162,8 @@ export function createPracticeSessionViewStateWithToggledRevealedHidden(
     ready.phase,
     ready.sessionAssociations,
     revealed,
+    ready.passedCount,
+    ready.totalCases,
   )
 }
 
@@ -148,6 +177,8 @@ export function createPracticeSessionViewStateWithoutSessionAssociation(
     ready.phase,
     ready.sessionAssociations.filter((item) => item.id !== associationId),
     ready.revealedHiddenAssociationIds.filter((id) => id !== associationId),
+    ready.passedCount,
+    ready.totalCases,
   )
 }
 
@@ -162,6 +193,8 @@ export function createPracticeSessionViewStateWithSessionAssociationPatched(
     ready.phase,
     ready.sessionAssociations.map((item) => (item.id === associationId ? patch(item) : item)),
     ready.revealedHiddenAssociationIds,
+    ready.passedCount,
+    ready.totalCases,
   )
 }
 
@@ -187,6 +220,13 @@ export function selectCurrentCard(state: PracticeSessionViewState): PracticeCard
 
 export function selectFrontCaseId(state: PracticeSessionViewState): string | null {
   if (!isPracticeSessionReadyViewState(state) || state.phase !== "front") {
+    return null
+  }
+  return state.cards[state.cardIndex]?.id ?? null
+}
+
+export function selectCurrentCaseId(state: PracticeSessionViewState): string | null {
+  if (!isPracticeSessionReadyViewState(state)) {
     return null
   }
   return state.cards[state.cardIndex]?.id ?? null

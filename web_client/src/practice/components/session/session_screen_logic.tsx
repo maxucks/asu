@@ -13,6 +13,7 @@ import { useActiveLanguageMeta } from "@/practice/hooks/use_active_language"
 import { usePractice } from "@/practice/hooks/use_practice"
 import { useSessionUi } from "@/practice/hooks/use_session_ui"
 import { usePracticeSessionController } from "@/practice/practice_session_controller"
+import { isAssociationOnCard } from "@/practice/practice_session_view_state"
 import { associationKindLabel } from "@/practice/practice_utils"
 import { useState } from "react"
 
@@ -32,7 +33,7 @@ export function SessionScreenLogic() {
       languageName={languageName}
       progress={
         session.state.status === "ready"
-          ? `${session.state.cardIndex + 1} / ${session.state.cards.length}`
+          ? `${session.state.passedCount} passed · ${session.state.totalCases} in deck`
           : "—"
       }
       onOpenLanguages={() => setLanguageOpen(true)}
@@ -87,20 +88,11 @@ export function SessionScreenLogic() {
     )
   }
 
-  if (session.state.status === "finished") {
-    return (
-      <>
-        {languageModal}
-        {caseLibrary}
-        <div className="mx-auto flex min-h-dvh max-w-lg flex-col gap-4 p-6">
-          {languageBar}
-          <StatusLayout kind="finished" />
-        </div>
-      </>
-    )
+  if (session.state.status !== "ready") {
+    return null
   }
 
-  if (session.state.status === "ready" && session.state.cards.length === 0) {
+  if (session.state.totalCases === 0) {
     return (
       <>
         {languageModal}
@@ -115,15 +107,17 @@ export function SessionScreenLogic() {
     )
   }
 
-  const { cardIndex, cards, phase } = session.state
+  const { phase, passedCount, totalCases } = session.state
   const onFront = phase === "front"
   const card = session.currentCard
   const managing = onFront && (ui.editor === null || ui.editor.intent === "edit") && !ui.adding && !ui.editingCase
+  const associationSortable = managing && onFront && !ui.editingCase
 
   const rows: AssocRow[] = session.visibleAssociations.map((association) => {
     const flags = assocFlags(association, session, ui.editor, phase, managing)
     return {
       association,
+      sortable: card ? isAssociationOnCard(card, association.id) : false,
       flags,
       onEdit: () => ui.startAssocEdit(association),
       onHide: () => void session.setAssociationHidden(association.id, true),
@@ -185,7 +179,7 @@ export function SessionScreenLogic() {
         languageName={languageName}
         onOpenLanguages={() => setLanguageOpen(true)}
         onOpenCaseLibrary={openLibrary}
-        progress={`${cardIndex + 1} / ${cards.length}`}
+        progress={`${passedCount} passed · ${totalCases} in deck`}
         onFront={onFront}
         editingCase={ui.editingCase}
         caseSaving={ui.caseSaving}
@@ -206,8 +200,11 @@ export function SessionScreenLogic() {
         onEditCase={ui.startCaseEdit}
         onDeleteCase={() => ui.setPendingCaseDelete(true)}
         onPick={ui.pickAssoc}
+        sortable={associationSortable}
+        onReorder={(ids) => void session.reorderAssociations(ids)}
         onReveal={session.revealAnswer}
-        onGrade={session.submitGrade}
+        onGrade={(grade) => void session.submitGrade(grade)}
+        grading={session.gradingCase}
         overlays={
           <OverlaysLayout
             createOpen={false}

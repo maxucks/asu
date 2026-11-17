@@ -29,6 +29,11 @@ export type PracticeQueueDto = {
   readonly cards: readonly PracticeCardDto[]
 }
 
+export type PracticeSessionDto = {
+  readonly totalCases: number
+  readonly card: PracticeCardDto
+}
+
 export class HttpCaseDataSource {
   constructor(
     private readonly queueCardsById: Map<string, PracticeCardDto>,
@@ -45,6 +50,29 @@ export class HttpCaseDataSource {
       this.queueCardsById.set(card.id, card)
     }
     return listing
+  }
+
+  async fetchPracticeSession(languageId: string): Promise<PracticeSessionDto> {
+    const session = await requestJson<PracticeSessionDto>(
+      this.baseUrl,
+      "GET",
+      `/api/practice/session?languageId=${encodeURIComponent(languageId)}`,
+    )
+    this.queueCardsById.set(session.card.id, session.card)
+    return session
+  }
+
+  async pickNextPracticeCard(languageId: string, excludeCaseId: string | null): Promise<PracticeSessionDto> {
+    const exclude = excludeCaseId
+      ? `&excludeCaseId=${encodeURIComponent(excludeCaseId)}`
+      : ""
+    const session = await requestJson<PracticeSessionDto>(
+      this.baseUrl,
+      "GET",
+      `/api/practice/next?languageId=${encodeURIComponent(languageId)}${exclude}`,
+    )
+    this.queueCardsById.set(session.card.id, session.card)
+    return session
   }
 
   async fetchPracticeQueue(languageId: string): Promise<PracticeQueueDto> {
@@ -143,6 +171,32 @@ export class HttpCaseDataSource {
       `/api/practice/cases/${caseId}/associations/${associationId}/hidden`,
       { hiddenFromPractice },
     )
+  }
+
+  async submitGradeDto(caseId: string, grade: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/practice/cases/${caseId}/grade`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ grade }),
+    })
+    if (!response.ok) {
+      let message = `Request failed (${response.status})`
+      try {
+        const payload = (await response.json()) as { message?: string }
+        if (typeof payload.message === "string" && payload.message.length > 0) {
+          message = payload.message
+        }
+      } catch {
+        // empty body
+      }
+      throw new Error(message)
+    }
+  }
+
+  async reorderAssociationsDto(caseId: string, associationIds: readonly string[]): Promise<CaseDto> {
+    return this.patchCard(`/api/practice/cases/${caseId}/associations/order`, {
+      associationIds: [...associationIds],
+    })
   }
 
   async deleteAssociationDto(caseId: string, associationId: string): Promise<CaseDto> {

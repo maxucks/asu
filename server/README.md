@@ -19,8 +19,11 @@ Loads `.env` from the server directory. If you change `PORT`, set `NEXT_PUBLIC_A
 Default: `http://localhost:3001`
 
 - `GET /health`
-- `GET /api/practice/queue`
-- Association routes under `/api/practice/cases/:caseId/associations/...`
+- `GET /api/practice/session?languageId=` — start infinite practice (weighted pick + `totalCases`)
+- `GET /api/practice/next?languageId=&excludeCaseId=` — next card after a grade
+- `GET /api/practice/queue` — legacy shim (first picked card only)
+- `POST /api/practice/cases/:caseId/grade` — body `{ "grade": "hard" | "medium" | "easy" }`
+- Association routes under `/api/practice/cases/:caseId/associations/...` (including `PATCH .../associations/order` with `{ associationIds }`)
 
 Dev seed data lives in `server/src/db/seed.ts` (`bun run db:seed`).
 

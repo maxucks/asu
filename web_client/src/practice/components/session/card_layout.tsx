@@ -27,6 +27,8 @@ export type CardLayoutProps = {
   readonly onEditCase: () => void
   readonly onDeleteCase: () => void
   readonly onPick: (action: AssociationAddAction) => void
+  readonly sortable?: boolean
+  readonly onReorder?: (associationIds: readonly string[]) => void
 }
 
 export function CardLayout(props: CardLayoutProps) {
@@ -65,6 +67,8 @@ export function CardLayout(props: CardLayoutProps) {
         addText={props.addText}
         addUrl={props.addUrl}
         onPick={props.onPick}
+        sortable={props.sortable}
+        onReorder={props.onReorder}
       />
 
       {props.showLemma && props.revealLemma ? (

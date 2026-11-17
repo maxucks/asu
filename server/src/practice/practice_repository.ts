@@ -21,15 +21,26 @@ export type PracticeQueueDto = {
   readonly cards: readonly PracticeCardDto[]
 }
 
+export type PracticeSessionDto = {
+  readonly totalCases: number
+  readonly card: PracticeCardDto
+}
+
 export const PracticeGrades = ["hard", "medium", "easy"] as const
 
 export type PracticeGradeDto = (typeof PracticeGrades)[number]
 
 import {
+  applyPracticeGrade,
+  createInitialStudyRecord,
+  pickNextPracticeCaseId,
+} from "@/practice/practice_srs"
+import {
   practiceAssociationErrorFromThrown,
   PracticeErrAssociationNotOnCard,
   PracticeErrAssociationWrongKind,
   practiceCardNotFoundError,
+  PracticeErrQueueEmpty,
   practiceLanguageErrorFromThrown,
   practiceQueueErrorFromThrown,
   type PracticeError,
@@ -192,6 +203,29 @@ export class PracticeRepository {
     }
   }
 
+  async reorderAssociations(
+    caseId: string,
+    associationIds: readonly string[],
+  ): Promise<Result<PracticeCardDto, PracticeError>> {
+    try {
+      const existing = await this.caseDataSource.getCaseDtoById(caseId)
+      const onCard = new Set(existing.associations.map((item) => item.id))
+      if (associationIds.length !== onCard.size) {
+        return err(PracticeErrAssociationNotOnCard)
+      }
+      for (const id of associationIds) {
+        if (!onCard.has(id)) {
+          return err(PracticeErrAssociationNotOnCard)
+        }
+      }
+
+      const caseDto = await this.caseDataSource.reorderAssociationsDto(caseId, associationIds)
+      return ok(PracticeRepository.caseDtoToPracticeCard(caseDto))
+    } catch (thrown) {
+      return err(practiceAssociationErrorFromThrown(thrown))
+    }
+  }
+
   async deleteAssociation(
     caseId: string,
     associationId: string,
@@ -215,17 +249,81 @@ export class PracticeRepository {
   }
 
   async getQueue(languageId: string): Promise<Result<PracticeQueueDto, PracticeError>> {
-    try {
-      const listed = await this.listCases(languageId)
-      if (!listed.ok) return listed
+    const started = await this.startPracticeSession(languageId)
+    if (!started.ok) return started
 
-      if (listed.value.cards.length === 0) {
-        return ok({ cards: [] })
+    return ok({ cards: [started.value.card] })
+  }
+
+  async startPracticeSession(languageId: string): Promise<Result<PracticeSessionDto, PracticeError>> {
+    try {
+      const card = await this.pickPracticeCardDto(languageId, null)
+      if (!card) {
+        return err(PracticeErrQueueEmpty)
       }
 
-      const shuffled = PracticeRepository.shuffle([...listed.value.cards])
-      return ok({ cards: shuffled })
+      const totalCases = (await this.caseDataSource.listCaseDtosByLanguageId(languageId)).length
+      return ok({ totalCases, card })
     } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
+  async pickNextPracticeCard(
+    languageId: string,
+    excludeCaseId: string | null,
+  ): Promise<Result<PracticeSessionDto, PracticeError>> {
+    try {
+      const card = await this.pickPracticeCardDto(languageId, excludeCaseId)
+      if (!card) {
+        return err(PracticeErrQueueEmpty)
+      }
+
+      const totalCases = (await this.caseDataSource.listCaseDtosByLanguageId(languageId)).length
+      return ok({ totalCases, card })
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
+  private async pickPracticeCardDto(
+    languageId: string,
+    excludeCaseId: string | null,
+  ): Promise<PracticeCardDto | null> {
+    const allCases = await this.caseDataSource.listCaseDtosByLanguageId(languageId)
+    if (allCases.length === 0) {
+      return null
+    }
+
+    const caseIds = allCases.map((item) => item.id)
+    const records = await this.studyRecordDataSource.listStudyRecordDtosByCaseIds(caseIds)
+    const recordByCaseId = new Map(records.map((record) => [record.caseId, record]))
+
+    const nextId = pickNextPracticeCaseId(caseIds, recordByCaseId, new Date(), excludeCaseId)
+    const caseDto = allCases.find((item) => item.id === nextId)
+    if (!caseDto) {
+      return null
+    }
+
+    return PracticeRepository.caseDtoToPracticeCard(caseDto)
+  }
+
+  async submitGrade(
+    caseId: string,
+    grade: PracticeGradeDto,
+  ): Promise<Result<void, PracticeError>> {
+    try {
+      await this.caseDataSource.getCaseDtoById(caseId)
+      const existing =
+        (await this.studyRecordDataSource.getStudyRecordDtoByCaseId(caseId)) ??
+        createInitialStudyRecord(caseId)
+      const updated = applyPracticeGrade(existing, grade, new Date())
+      await this.studyRecordDataSource.upsertStudyRecordDto(updated)
+      return ok(undefined)
+    } catch (thrown) {
+      if (thrown instanceof Error && thrown.message.startsWith("Record not found")) {
+        return err(practiceCardNotFoundError(thrown.message))
+      }
       return err(practiceQueueErrorFromThrown(thrown))
     }
   }
@@ -237,6 +335,7 @@ export class PracticeRepository {
   ): Promise<Result<PracticeCardDto, PracticeError>> {
     try {
       const caseDto = await this.caseDataSource.createCaseDto(lemmaText, meaning, languageId)
+      await this.studyRecordDataSource.insertStudyRecordDto(createInitialStudyRecord(caseDto.id))
       return ok(PracticeRepository.caseDtoToPracticeCard(caseDto))
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown))
@@ -268,15 +367,6 @@ export class PracticeRepository {
       }
       return err(practiceQueueErrorFromThrown(thrown))
     }
-  }
-
-  private static shuffle<T>(items: T[]): T[] {
-    const copy = [...items]
-    for (let index = copy.length - 1; index > 0; index -= 1) {
-      const swapIndex = Math.floor(Math.random() * (index + 1))
-      ;[copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]]
-    }
-    return copy
   }
 
   private static caseDtoToPracticeCard(caseDto: CaseDto): PracticeCardDto {

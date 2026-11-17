@@ -53,7 +53,7 @@ No root `package.json` — install deps per package (`server/`, `web_client/`). 
 
 ### Not done / known gaps
 
-- **Grading (SRS)** is client-only; no server endpoint for `submitGrade`.
+- **Grading (SRS)** persists via `POST /api/practice/cases/:caseId/grade`; queue uses `study_records` ordering.
 - Client: `http_*_data_source.ts` only (run the API server for practice data).
 - Seed: `server/src/db/seed.ts` (`SEED_CASES` with English vocab, `meaning` field).
 

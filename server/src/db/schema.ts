@@ -42,4 +42,8 @@ export const studyRecords = sqliteTable("study_records", {
     .references(() => cases.id, { onDelete: "cascade" }),
   reviewStatus: text("review_status").notNull(),
   dueAt: text("due_at"),
+  schedulingStrengthNumeric: integer("scheduling_strength_numeric").notNull().default(0),
+  repetitionsCount: integer("repetitions_count").notNull().default(0),
+  lastRepetitionAt: text("last_repetition_at"),
+  lastGradeNumeric: integer("last_grade_numeric"),
 })

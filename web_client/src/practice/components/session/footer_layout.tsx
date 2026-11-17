@@ -3,11 +3,12 @@ import type { PracticeGradeDto } from "@/practice/practice_repository"
 
 type FooterLayoutProps = {
   readonly onFront: boolean
+  readonly grading?: boolean
   readonly onReveal: () => void
   readonly onGrade: (grade: PracticeGradeDto) => void
 }
 
-export function FooterLayout({ onFront, onReveal, onGrade }: FooterLayoutProps) {
+export function FooterLayout({ onFront, grading, onReveal, onGrade }: FooterLayoutProps) {
   return (
     <footer className="mt-auto">
       {onFront ? (
@@ -19,7 +20,7 @@ export function FooterLayout({ onFront, onReveal, onGrade }: FooterLayoutProps) 
           Show answer
         </button>
       ) : (
-        <Grades onGrade={onGrade} />
+        <Grades onGrade={onGrade} disabled={grading} />
       )}
     </footer>
   )

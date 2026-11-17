@@ -24,6 +24,8 @@ export type CaseLibraryDetailLayoutProps = {
   readonly onEditCase: () => void
   readonly onDeleteCase: () => void
   readonly onPick: (action: AssociationAddAction) => void
+  readonly sortable?: boolean
+  readonly onReorder?: (associationIds: readonly string[]) => void
 }
 
 export function CaseLibraryDetailLayout(props: CaseLibraryDetailLayoutProps) {
@@ -67,6 +69,8 @@ export function CaseLibraryDetailLayout(props: CaseLibraryDetailLayoutProps) {
         addUrl={props.addUrl}
         onPick={props.onPick}
         associationTextClassName="text-sm"
+        sortable={props.sortable}
+        onReorder={props.onReorder}
       />
     </section>
   )

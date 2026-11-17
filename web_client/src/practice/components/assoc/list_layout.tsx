@@ -1,9 +1,13 @@
+"use client"
+
 import type { AssocFlags } from "@/practice/assoc_flags"
 import type { PracticeAssociation } from "@/practice/practice_model"
 import { AddMenu } from "@/practice/components/session/add_menu"
 import { AssocCardLayout } from "@/practice/components/assoc/card_layout"
 import type { AssociationAddAction } from "@/practice/practice_utils"
+import { reorderAssociationIds } from "@/practice/practice_utils"
 import type { ReactNode } from "react"
+import { useCallback, useState } from "react"
 
 export type AssocRow = {
   readonly association: PracticeAssociation
@@ -15,6 +19,7 @@ export type AssocRow = {
   readonly onUnhide: () => void
   readonly onDelete: () => void
   readonly onReveal: () => void
+  readonly sortable?: boolean
 }
 
 type AssocListLayoutProps = {
@@ -25,6 +30,8 @@ type AssocListLayoutProps = {
   readonly addUrl: ReactNode
   readonly onPick: (action: AssociationAddAction) => void
   readonly associationTextClassName?: string
+  readonly sortable?: boolean
+  readonly onReorder?: (associationIds: readonly string[]) => void
 }
 
 export function AssocListLayout({
@@ -35,7 +42,25 @@ export function AssocListLayout({
   addUrl,
   onPick,
   associationTextClassName,
+  sortable = false,
+  onReorder,
 }: AssocListLayoutProps) {
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+
+  const canSort = sortable && !saving && onReorder !== undefined
+
+  const sortableIds = rows.filter((row) => row.sortable !== false && !row.flags.editing).map((row) => row.association.id)
+
+  const commitReorder = useCallback(
+    (activeId: string, overId: string) => {
+      if (!onReorder) return
+      const next = reorderAssociationIds(sortableIds, activeId, overId)
+      if (next) onReorder(next)
+    },
+    [onReorder, sortableIds],
+  )
+
   return (
     <ul className="grid grid-cols-2 gap-px bg-grid-line">
       {rows.map((row) => {
@@ -53,8 +78,44 @@ export function AssocListLayout({
             </li>
           )
         }
+
+        const rowSortable = canSort && row.sortable !== false
+        const isDragging = draggingId === row.association.id
+        const isOver = dragOverId === row.association.id && draggingId !== row.association.id
+
         return (
-          <li key={row.association.id} className="min-w-0 bg-card">
+          <li
+            key={row.association.id}
+            className={`relative min-w-0 bg-card transition ${isDragging ? "opacity-45" : ""} ${isOver ? "z-[1] ring-2 ring-inset ring-accent" : ""}`}
+            draggable={rowSortable}
+            onDragStart={(event) => {
+              if (!rowSortable) return
+              setDraggingId(row.association.id)
+              event.dataTransfer.effectAllowed = "move"
+              event.dataTransfer.setData("text/plain", row.association.id)
+            }}
+            onDragEnd={() => {
+              setDraggingId(null)
+              setDragOverId(null)
+            }}
+            onDragOver={(event) => {
+              if (!rowSortable || draggingId === null) return
+              event.preventDefault()
+              event.dataTransfer.dropEffect = "move"
+              setDragOverId(row.association.id)
+            }}
+            onDragLeave={() => {
+              if (dragOverId === row.association.id) setDragOverId(null)
+            }}
+            onDrop={(event) => {
+              event.preventDefault()
+              const activeId = draggingId ?? event.dataTransfer.getData("text/plain")
+              setDraggingId(null)
+              setDragOverId(null)
+              if (!activeId || activeId === row.association.id) return
+              commitReorder(activeId, row.association.id)
+            }}
+          >
             <AssocCardLayout
               association={row.association}
               textClassName={associationTextClassName}

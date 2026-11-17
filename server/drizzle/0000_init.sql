@@ -32,5 +32,9 @@ CREATE TABLE IF NOT EXISTS `study_records` (
 	`case_id` text PRIMARY KEY NOT NULL,
 	`review_status` text NOT NULL,
 	`due_at` text,
+	`scheduling_strength_numeric` integer DEFAULT 0 NOT NULL,
+	`repetitions_count` integer DEFAULT 0 NOT NULL,
+	`last_repetition_at` text,
+	`last_grade_numeric` integer,
 	FOREIGN KEY (`case_id`) REFERENCES `cases`(`id`) ON UPDATE no action ON DELETE cascade
 );
