@@ -28,6 +28,27 @@ CREATE TABLE IF NOT EXISTS `associations` (
 
 CREATE INDEX IF NOT EXISTS `associations_case_id_idx` ON `associations` (`case_id`);
 
+CREATE TABLE IF NOT EXISTS `categories` (
+	`id` text PRIMARY KEY NOT NULL,
+	`language_id` text NOT NULL,
+	`name` text NOT NULL,
+	FOREIGN KEY (`language_id`) REFERENCES `languages`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS `categories_language_name_uq` ON `categories` (`language_id`,`name`);
+CREATE INDEX IF NOT EXISTS `categories_language_id_idx` ON `categories` (`language_id`);
+
+CREATE TABLE IF NOT EXISTS `case_categories` (
+	`case_id` text NOT NULL,
+	`category_id` text NOT NULL,
+	PRIMARY KEY(`case_id`, `category_id`),
+	FOREIGN KEY (`case_id`) REFERENCES `cases`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE INDEX IF NOT EXISTS `case_categories_case_id_idx` ON `case_categories` (`case_id`);
+CREATE INDEX IF NOT EXISTS `case_categories_category_id_idx` ON `case_categories` (`category_id`);
+
 CREATE TABLE IF NOT EXISTS `study_records` (
 	`case_id` text PRIMARY KEY NOT NULL,
 	`review_status` text NOT NULL,

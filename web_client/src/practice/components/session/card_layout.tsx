@@ -29,6 +29,7 @@ export type CardLayoutProps = {
   readonly onPick: (action: AssociationAddAction) => void
   readonly sortable?: boolean
   readonly onReorder?: (associationIds: readonly string[]) => void
+  readonly caseCategories?: ReactNode
 }
 
 export function CardLayout(props: CardLayoutProps) {
@@ -56,6 +57,9 @@ export function CardLayout(props: CardLayoutProps) {
           />
         ) : props.cardMeaning ? (
           <p className="rounded-xl border border-grid-line bg-tile px-4 py-3 text-sm leading-relaxed text-foreground/90">{props.cardMeaning}</p>
+        ) : null}
+        {props.caseCategories ? (
+          <div className="relative z-20 overflow-visible">{props.caseCategories}</div>
         ) : null}
       </div>
 

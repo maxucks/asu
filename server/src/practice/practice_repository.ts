@@ -3,11 +3,20 @@ import type { Result } from "@/core/app_errors"
 import { DrizzleCaseDataSource } from "@/core/data_sources/case_data_source_drizzle"
 import type { LanguageDto } from "@/core/data_sources/language_data_source_drizzle"
 import { DrizzleLanguageDataSource } from "@/core/data_sources/language_data_source_drizzle"
+import {
+  DrizzleCategoryDataSource,
+  type CategoryDto,
+} from "@/core/data_sources/category_data_source_drizzle"
 import { DrizzleStudyRecordDataSource } from "@/core/data_sources/study_record_data_source_drizzle"
 import type {
   AssociationDto,
   CaseDto,
 } from "@/core/data_sources/case_data_source_drizzle"
+
+export type CaseCategoryRefDto = {
+  readonly id: string
+  readonly name: string
+}
 
 export type PracticeCardDto = {
   readonly id: string
@@ -15,6 +24,7 @@ export type PracticeCardDto = {
   readonly lemmaText: string
   readonly meaning: string | null
   readonly associations: readonly AssociationDto[]
+  readonly categories: readonly CaseCategoryRefDto[]
 }
 
 export type PracticeQueueDto = {
@@ -50,8 +60,25 @@ export class PracticeRepository {
   constructor(
     private readonly studyRecordDataSource: DrizzleStudyRecordDataSource,
     private readonly caseDataSource: DrizzleCaseDataSource,
+    private readonly categoryDataSource: DrizzleCategoryDataSource,
     private readonly languageDataSource: DrizzleLanguageDataSource,
   ) {}
+
+  private async listCasesForPractice(
+    languageId: string,
+    categoryId: string | null,
+  ): Promise<readonly CaseDto[]> {
+    let allCases = await this.caseDataSource.listCaseDtosByLanguageId(languageId)
+    if (categoryId) {
+      const languageForCategory = await this.categoryDataSource.getCategoryLanguageId(categoryId)
+      if (languageForCategory !== languageId) {
+        return []
+      }
+      const allowed = new Set(await this.categoryDataSource.listCaseIdsForCategory(categoryId))
+      allCases = allCases.filter((item) => allowed.has(item.id))
+    }
+    return allCases
+  }
 
   async listLanguages(): Promise<Result<readonly LanguageDto[], PracticeError>> {
     try {
@@ -238,12 +265,47 @@ export class PracticeRepository {
     }
   }
 
-  async listCases(languageId: string): Promise<Result<PracticeQueueDto, PracticeError>> {
+  async listCases(
+    languageId: string,
+    categoryId: string | null = null,
+  ): Promise<Result<PracticeQueueDto, PracticeError>> {
     try {
-      const allCases = await this.caseDataSource.listCaseDtosByLanguageId(languageId)
+      const allCases = await this.listCasesForPractice(languageId, categoryId)
       const cards = allCases.map((caseDto) => PracticeRepository.caseDtoToPracticeCard(caseDto))
       return ok({ cards })
     } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
+  async listCategories(languageId: string): Promise<Result<readonly CategoryDto[], PracticeError>> {
+    try {
+      return ok(await this.categoryDataSource.listCategoryDtos(languageId))
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
+  async createCategory(languageId: string, name: string): Promise<Result<CategoryDto, PracticeError>> {
+    try {
+      return ok(await this.categoryDataSource.createCategoryDto(languageId, name))
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
+  async setCaseCategories(
+    caseId: string,
+    categoryIds: readonly string[],
+  ): Promise<Result<PracticeCardDto, PracticeError>> {
+    try {
+      await this.categoryDataSource.setCaseCategoryIds(caseId, categoryIds)
+      const caseDto = await this.caseDataSource.getCaseDtoById(caseId)
+      return ok(PracticeRepository.caseDtoToPracticeCard(caseDto))
+    } catch (thrown) {
+      if (thrown instanceof Error && thrown.message.startsWith("Record not found")) {
+        return err(practiceCardNotFoundError(thrown.message))
+      }
       return err(practiceQueueErrorFromThrown(thrown))
     }
   }
@@ -255,14 +317,17 @@ export class PracticeRepository {
     return ok({ cards: [started.value.card] })
   }
 
-  async startPracticeSession(languageId: string): Promise<Result<PracticeSessionDto, PracticeError>> {
+  async startPracticeSession(
+    languageId: string,
+    categoryId: string | null = null,
+  ): Promise<Result<PracticeSessionDto, PracticeError>> {
     try {
-      const card = await this.pickPracticeCardDto(languageId, null)
+      const card = await this.pickPracticeCardDto(languageId, null, categoryId)
       if (!card) {
         return err(PracticeErrQueueEmpty)
       }
 
-      const totalCases = (await this.caseDataSource.listCaseDtosByLanguageId(languageId)).length
+      const totalCases = (await this.listCasesForPractice(languageId, categoryId)).length
       return ok({ totalCases, card })
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown))
@@ -272,14 +337,15 @@ export class PracticeRepository {
   async pickNextPracticeCard(
     languageId: string,
     excludeCaseId: string | null,
+    categoryId: string | null = null,
   ): Promise<Result<PracticeSessionDto, PracticeError>> {
     try {
-      const card = await this.pickPracticeCardDto(languageId, excludeCaseId)
+      const card = await this.pickPracticeCardDto(languageId, excludeCaseId, categoryId)
       if (!card) {
         return err(PracticeErrQueueEmpty)
       }
 
-      const totalCases = (await this.caseDataSource.listCaseDtosByLanguageId(languageId)).length
+      const totalCases = (await this.listCasesForPractice(languageId, categoryId)).length
       return ok({ totalCases, card })
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown))
@@ -289,8 +355,9 @@ export class PracticeRepository {
   private async pickPracticeCardDto(
     languageId: string,
     excludeCaseId: string | null,
+    categoryId: string | null,
   ): Promise<PracticeCardDto | null> {
-    const allCases = await this.caseDataSource.listCaseDtosByLanguageId(languageId)
+    const allCases = await this.listCasesForPractice(languageId, categoryId)
     if (allCases.length === 0) {
       return null
     }
@@ -376,6 +443,7 @@ export class PracticeRepository {
       lemmaText: caseDto.lemmaText,
       meaning: caseDto.meaning,
       associations: caseDto.associations,
+      categories: caseDto.categories,
     }
   }
 

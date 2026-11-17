@@ -4,6 +4,11 @@ export const AssociationKinds = ["text", "image", "audio", "sketch", "video"] as
 
 export type AssociationKind = (typeof AssociationKinds)[number]
 
+export type CaseCategoryRefDto = {
+  readonly id: string
+  readonly name: string
+}
+
 export type AssociationDto = {
   readonly id: string
   readonly kind: AssociationKind
@@ -21,6 +26,7 @@ export type PracticeCardDto = {
   readonly lemmaText: string
   readonly meaning: string | null
   readonly associations: readonly AssociationDto[]
+  readonly categories: readonly CaseCategoryRefDto[]
 }
 
 export type CaseDto = PracticeCardDto
@@ -40,11 +46,15 @@ export class HttpCaseDataSource {
     private readonly baseUrl: string = asuApiBaseUrl(),
   ) {}
 
-  async fetchCasesByLanguageId(languageId: string): Promise<PracticeQueueDto> {
+  private categoryQuery(categoryId: string | null): string {
+    return categoryId ? `&categoryId=${encodeURIComponent(categoryId)}` : ""
+  }
+
+  async fetchCasesByLanguageId(languageId: string, categoryId: string | null = null): Promise<PracticeQueueDto> {
     const listing = await requestJson<PracticeQueueDto>(
       this.baseUrl,
       "GET",
-      `/api/practice/cases?languageId=${encodeURIComponent(languageId)}`,
+      `/api/practice/cases?languageId=${encodeURIComponent(languageId)}${this.categoryQuery(categoryId)}`,
     )
     for (const card of listing.cards) {
       this.queueCardsById.set(card.id, card)
@@ -52,24 +62,26 @@ export class HttpCaseDataSource {
     return listing
   }
 
-  async fetchPracticeSession(languageId: string): Promise<PracticeSessionDto> {
+  async fetchPracticeSession(languageId: string, categoryId: string | null = null): Promise<PracticeSessionDto> {
     const session = await requestJson<PracticeSessionDto>(
       this.baseUrl,
       "GET",
-      `/api/practice/session?languageId=${encodeURIComponent(languageId)}`,
+      `/api/practice/session?languageId=${encodeURIComponent(languageId)}${this.categoryQuery(categoryId)}`,
     )
     this.queueCardsById.set(session.card.id, session.card)
     return session
   }
 
-  async pickNextPracticeCard(languageId: string, excludeCaseId: string | null): Promise<PracticeSessionDto> {
-    const exclude = excludeCaseId
-      ? `&excludeCaseId=${encodeURIComponent(excludeCaseId)}`
-      : ""
+  async pickNextPracticeCard(
+    languageId: string,
+    excludeCaseId: string | null,
+    categoryId: string | null = null,
+  ): Promise<PracticeSessionDto> {
+    const exclude = excludeCaseId ? `&excludeCaseId=${encodeURIComponent(excludeCaseId)}` : ""
     const session = await requestJson<PracticeSessionDto>(
       this.baseUrl,
       "GET",
-      `/api/practice/next?languageId=${encodeURIComponent(languageId)}${exclude}`,
+      `/api/practice/next?languageId=${encodeURIComponent(languageId)}${exclude}${this.categoryQuery(categoryId)}`,
     )
     this.queueCardsById.set(session.card.id, session.card)
     return session
@@ -191,6 +203,10 @@ export class HttpCaseDataSource {
       }
       throw new Error(message)
     }
+  }
+
+  async setCaseCategoriesDto(caseId: string, categoryIds: readonly string[]): Promise<CaseDto> {
+    return this.patchCard(`/api/practice/cases/${caseId}/categories`, { categoryIds: [...categoryIds] })
   }
 
   async reorderAssociationsDto(caseId: string, associationIds: readonly string[]): Promise<CaseDto> {

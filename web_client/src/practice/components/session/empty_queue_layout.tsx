@@ -4,24 +4,42 @@ import type { ReactNode } from "react"
 type EmptyQueueLayoutProps = {
   readonly languageIcon?: string
   readonly languageName?: string
+  readonly categoryLabel?: string
+  readonly categoryCount?: number
+  readonly categoryActive?: boolean
+  readonly onOpenCategory?: () => void
+  readonly onClearCategory?: () => void
   readonly onOpenLanguages: () => void
   readonly onOpenCaseLibrary: () => void
+  readonly categoryModal?: ReactNode
   readonly overlays?: ReactNode
 }
 
 export function EmptyQueueLayout({
   languageIcon,
   languageName,
+  categoryLabel,
+  categoryCount,
+  categoryActive,
+  onOpenCategory,
+  onClearCategory,
   onOpenLanguages,
   onOpenCaseLibrary,
+  categoryModal,
   overlays,
 }: EmptyQueueLayoutProps) {
   return (
     <main className="relative mx-auto flex min-h-dvh max-w-lg flex-col gap-6 p-6 pb-10">
+      {categoryModal}
       <HeaderLayout
         languageIcon={languageIcon}
         languageName={languageName}
         progress="—"
+        categoryLabel={categoryLabel}
+        categoryCount={categoryCount}
+        categoryActive={categoryActive}
+        onOpenCategory={onOpenCategory}
+        onClearCategory={onClearCategory}
         onOpenLanguages={onOpenLanguages}
         onOpenCaseLibrary={onOpenCaseLibrary}
       />

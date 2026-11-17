@@ -8,6 +8,8 @@ import type {
   PracticeSessionDto,
 } from "@/core/data_sources/http_case_data_source";
 import type { HttpCaseDataSource } from "@/core/data_sources/http_case_data_source";
+import type { CategoryDto } from "@/core/data_sources/http_category_data_source";
+import type { HttpCategoryDataSource } from "@/core/data_sources/http_category_data_source";
 import type { HttpLanguageDataSource } from "@/core/data_sources/http_language_data_source";
 import type { LanguageDto } from "@/core/data_sources/http_language_data_source";
 import {
@@ -25,6 +27,7 @@ export type {
   PracticeQueueDto,
   PracticeSessionDto,
 } from "@/core/data_sources/http_case_data_source";
+export type { CategoryDto } from "@/core/data_sources/http_category_data_source";
 export type { LanguageDto } from "@/core/data_sources/http_language_data_source";
 
 export const PracticeGrades = ["hard", "medium", "easy"] as const;
@@ -35,6 +38,7 @@ export class PracticeRepository {
   constructor(
     private readonly caseDataSource: HttpCaseDataSource,
     private readonly languageDataSource: HttpLanguageDataSource,
+    private readonly categoryDataSource: HttpCategoryDataSource,
   ) {}
 
   async listLanguages(): Promise<Result<readonly LanguageDto[], PracticeError>> {
@@ -237,10 +241,41 @@ export class PracticeRepository {
     }
   }
 
-  async listCases(languageId: string): Promise<Result<PracticeQueueDto, PracticeError>> {
+  async listCases(
+    languageId: string,
+    categoryId: string | null = null,
+  ): Promise<Result<PracticeQueueDto, PracticeError>> {
     try {
-      const listing = await this.caseDataSource.fetchCasesByLanguageId(languageId);
+      const listing = await this.caseDataSource.fetchCasesByLanguageId(languageId, categoryId);
       return ok(listing);
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
+
+  async listCategories(languageId: string): Promise<Result<readonly CategoryDto[], PracticeError>> {
+    try {
+      return ok(await this.categoryDataSource.listCategories(languageId));
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
+
+  async createCategory(languageId: string, name: string): Promise<Result<CategoryDto, PracticeError>> {
+    try {
+      return ok(await this.categoryDataSource.createCategory(languageId, name));
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
+
+  async setCaseCategories(
+    caseId: string,
+    categoryIds: readonly string[],
+  ): Promise<Result<PracticeCardDto, PracticeError>> {
+    try {
+      const caseDto = await this.caseDataSource.setCaseCategoriesDto(caseId, categoryIds);
+      return ok(PracticeRepository.caseDtoToPracticeCard(caseDto));
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown));
     }
@@ -255,9 +290,12 @@ export class PracticeRepository {
     }
   }
 
-  async startPracticeSession(languageId: string): Promise<Result<PracticeSessionDto, PracticeError>> {
+  async startPracticeSession(
+    languageId: string,
+    categoryId: string | null = null,
+  ): Promise<Result<PracticeSessionDto, PracticeError>> {
     try {
-      return ok(await this.caseDataSource.fetchPracticeSession(languageId));
+      return ok(await this.caseDataSource.fetchPracticeSession(languageId, categoryId));
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown));
     }
@@ -266,9 +304,10 @@ export class PracticeRepository {
   async pickNextPracticeCard(
     languageId: string,
     excludeCaseId: string | null,
+    categoryId: string | null = null,
   ): Promise<Result<PracticeSessionDto, PracticeError>> {
     try {
-      return ok(await this.caseDataSource.pickNextPracticeCard(languageId, excludeCaseId));
+      return ok(await this.caseDataSource.pickNextPracticeCard(languageId, excludeCaseId, categoryId));
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown));
     }
@@ -321,6 +360,7 @@ export class PracticeRepository {
       lemmaText: caseDto.lemmaText,
       meaning: caseDto.meaning,
       associations: caseDto.associations,
+      categories: caseDto.categories ?? [],
     };
   }
 

@@ -43,7 +43,11 @@ function isPracticeGrade(value: string): value is PracticeGradeDto {
   return (PracticeGrades as readonly string[]).includes(value)
 }
 
-export function usePracticeSessionController(practiceRepository: PracticeRepository, languageId: string) {
+export function usePracticeSessionController(
+  practiceRepository: PracticeRepository,
+  languageId: string,
+  categoryId: string | null,
+) {
   const [state, setState] = useState<PracticeSessionViewState>(createPracticeSessionViewStateLoading())
   const [savingAssociation, setSavingAssociation] = useState<AssociationComposeMode | null>(null)
   const [deletingAssociationId, setDeletingAssociationId] = useState<string | null>(null)
@@ -51,47 +55,50 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
   const [deletingCaseId, setDeletingCaseId] = useState<string | null>(null)
   const [reorderingAssociations, setReorderingAssociations] = useState(false)
   const [gradingCase, setGradingCase] = useState(false)
+  const [categoriesBusy, setCategoriesBusy] = useState(false)
   const stateRef = useRef(state)
   stateRef.current = state
 
-  useEffect(() => {
-    let cancelled = false
+  const bootstrapSession = useCallback(async (): Promise<boolean> => {
+    setState(createPracticeSessionViewStateLoading())
+    const [listResult, sessionResult] = await Promise.all([
+      practiceRepository.listCases(languageId, categoryId),
+      practiceRepository.startPracticeSession(languageId, categoryId),
+    ])
 
-    async function load() {
-      setState(createPracticeSessionViewStateLoading())
-      const [listResult, sessionResult] = await Promise.all([
-        practiceRepository.listCases(languageId),
-        practiceRepository.startPracticeSession(languageId),
-      ])
-      if (cancelled) return
-
-      if (!listResult.ok) {
-        setState(createPracticeSessionViewStateError(listResult.error))
-        return
-      }
-
-      if (!sessionResult.ok) {
-        setState(createPracticeSessionViewStateError(sessionResult.error))
-        return
-      }
-
-      let cards = listResult.value.cards.map((dto) => PracticeCard.fromDto(dto))
-      let cardIndex = cards.findIndex((card) => card.id === sessionResult.value.card.id)
-      if (cardIndex < 0) {
-        cards = [...cards, PracticeCard.fromDto(sessionResult.value.card)]
-        cardIndex = cards.length - 1
-      }
-
-      setState(
-        createPracticeSessionViewStateReady(cards, cardIndex, "front", [], [], 0, sessionResult.value.totalCases),
-      )
+    if (!listResult.ok) {
+      setState(createPracticeSessionViewStateError(listResult.error))
+      return false
     }
 
-    void load()
+    if (!sessionResult.ok) {
+      setState(createPracticeSessionViewStateError(sessionResult.error))
+      return false
+    }
+
+    let cards = listResult.value.cards.map((dto) => PracticeCard.fromDto(dto))
+    let cardIndex = cards.findIndex((card) => card.id === sessionResult.value.card.id)
+    if (cardIndex < 0) {
+      cards = [...cards, PracticeCard.fromDto(sessionResult.value.card)]
+      cardIndex = cards.length - 1
+    }
+
+    setState(
+      createPracticeSessionViewStateReady(cards, cardIndex, "front", [], [], 0, sessionResult.value.totalCases),
+    )
+    return true
+  }, [categoryId, languageId, practiceRepository])
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const ok = await bootstrapSession()
+      if (!ok && cancelled) return
+    })()
     return () => {
       cancelled = true
     }
-  }, [practiceRepository, languageId])
+  }, [bootstrapSession])
 
   const currentCard = useMemo(() => selectCurrentCard(state), [state])
 
@@ -165,7 +172,7 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
         return
       }
 
-      const next = await practiceRepository.pickNextPracticeCard(languageId, caseId)
+      const next = await practiceRepository.pickNextPracticeCard(languageId, caseId, categoryId)
       if (!next.ok) {
         setState(createPracticeSessionViewStateError(next.error))
         return
@@ -191,7 +198,26 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
         )
       })
     },
-    [languageId, practiceRepository],
+    [categoryId, languageId, practiceRepository],
+  )
+
+  const setCaseCategories = useCallback(
+    async (caseId: string, categoryIds: readonly string[]) => {
+      setCategoriesBusy(true)
+      const result = await practiceRepository.setCaseCategories(caseId, categoryIds)
+      setCategoriesBusy(false)
+      if (!result.ok) {
+        setState(createPracticeSessionViewStateError(result.error))
+        return false
+      }
+      const updated = PracticeCard.fromDto(result.value)
+      setState((prev) => {
+        if (!isPracticeSessionReadyViewState(prev)) return prev
+        return createPracticeSessionViewStateWithReplacedCard(prev, updated)
+      })
+      return true
+    },
+    [practiceRepository],
   )
 
   const toggleRevealHiddenAssociation = useCallback((associationId: string) => {
@@ -339,7 +365,7 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
   )
 
   const reloadQueue = useCallback(async (): Promise<boolean> => {
-    const result = await practiceRepository.listCases(languageId)
+    const result = await practiceRepository.listCases(languageId, categoryId)
     if (!result.ok) {
       setState(createPracticeSessionViewStateError(result.error))
       return false
@@ -358,7 +384,9 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
       return createPracticeSessionViewStateAfterVocabularyReload(prev, cards, totalCases)
     })
     return true
-  }, [practiceRepository, languageId])
+  }, [categoryId, practiceRepository, languageId])
+
+  const reloadPracticeSession = useCallback(async () => bootstrapSession(), [bootstrapSession])
 
   const createVocabularyCase = useCallback(
     async (lemma: string, meaning: string): Promise<boolean> => {
@@ -450,6 +478,9 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
     savingAssociation,
     reorderingAssociations,
     gradingCase,
+    categoriesBusy,
+    setCaseCategories,
+    reloadPracticeSession,
     deletingAssociationId,
     caseBusy: vocabularyBusyCaseId,
     deletingCaseId,

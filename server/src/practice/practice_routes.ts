@@ -11,10 +11,13 @@ import {
   practiceCaseAssociationParamsSchema,
   practiceCaseIdParamsSchema,
   practiceCreateCaseBodySchema,
+  practiceCreateCategoryBodySchema,
   practiceCreateLanguageBodySchema,
   practiceLanguageIdParamsSchema,
   practiceNextCardQuerySchema,
   practiceQueueQuerySchema,
+  practiceSessionQuerySchema,
+  practiceSetCaseCategoriesBodySchema,
   practiceUpdateLanguageBodySchema,
   practiceUpdateCaseBodySchema,
 } from "@/practice/practice_route_schemas"
@@ -137,7 +140,47 @@ export function createPracticeRoutes(repository: PracticeRepository) {
     if (!query.ok) {
       return error(c, query.error, practiceErrorHttpStatus(query.error.code))
     }
-    const result = await repository.listCases(query.value.languageId)
+    const result = await repository.listCases(query.value.languageId, query.value.categoryId ?? null)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return ok(c, result.value)
+  })
+
+  routes.get("/categories", async (c) => {
+    const query = parseQuery(c.req.query(), practiceQueueQuerySchema)
+    if (!query.ok) {
+      return error(c, query.error, practiceErrorHttpStatus(query.error.code))
+    }
+    const result = await repository.listCategories(query.value.languageId)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return ok(c, { categories: result.value })
+  })
+
+  routes.post("/categories", async (c) => {
+    const body = await parseJsonBody(c, practiceCreateCategoryBodySchema)
+    if (!body.ok) {
+      return error(c, body.error, practiceErrorHttpStatus(body.error.code))
+    }
+    const result = await repository.createCategory(body.value.languageId, body.value.name)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return created(c, result.value)
+  })
+
+  routes.patch("/cases/:caseId/categories", async (c) => {
+    const params = parseRouteParams(c.req.param(), practiceCaseIdParamsSchema)
+    if (!params.ok) {
+      return error(c, params.error, practiceErrorHttpStatus(params.error.code))
+    }
+    const body = await parseJsonBody(c, practiceSetCaseCategoriesBodySchema)
+    if (!body.ok) {
+      return error(c, body.error, practiceErrorHttpStatus(body.error.code))
+    }
+    const result = await repository.setCaseCategories(params.value.caseId, body.value.categoryIds)
     if (!result.ok) {
       return error(c, result.error, practiceErrorHttpStatus(result.error.code))
     }
@@ -159,11 +202,14 @@ export function createPracticeRoutes(repository: PracticeRepository) {
   })
 
   routes.get("/session", async (c) => {
-    const query = parseQuery(c.req.query(), practiceQueueQuerySchema)
+    const query = parseQuery(c.req.query(), practiceSessionQuerySchema)
     if (!query.ok) {
       return error(c, query.error, practiceErrorHttpStatus(query.error.code))
     }
-    const result = await repository.startPracticeSession(query.value.languageId)
+    const result = await repository.startPracticeSession(
+      query.value.languageId,
+      query.value.categoryId ?? null,
+    )
     if (!result.ok) {
       return error(c, result.error, practiceErrorHttpStatus(result.error.code))
     }
@@ -178,6 +224,7 @@ export function createPracticeRoutes(repository: PracticeRepository) {
     const result = await repository.pickNextPracticeCard(
       query.value.languageId,
       query.value.excludeCaseId ?? null,
+      query.value.categoryId ?? null,
     )
     if (!result.ok) {
       return error(c, result.error, practiceErrorHttpStatus(result.error.code))

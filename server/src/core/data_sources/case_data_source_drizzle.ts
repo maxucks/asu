@@ -15,13 +15,20 @@ export type AssociationDto = {
   readonly hiddenFromPractice: boolean
 }
 
+export type CaseCategoryRefDto = {
+  readonly id: string
+  readonly name: string
+}
+
 export type CaseDto = {
   readonly id: string
   readonly languageName: string
   readonly lemmaText: string
   readonly meaning: string | null
   readonly associations: readonly AssociationDto[]
+  readonly categories: readonly CaseCategoryRefDto[]
 }
+import type { DrizzleCategoryDataSource } from "@/core/data_sources/category_data_source_drizzle"
 import { db } from "@/core/db"
 import { associations, cases, languages } from "@/db/schema"
 function mapAssociationRow(row: typeof associations.$inferSelect): AssociationDto {
@@ -36,7 +43,10 @@ function mapAssociationRow(row: typeof associations.$inferSelect): AssociationDt
   }
 }
 
-async function loadCaseDto(caseId: string): Promise<CaseDto> {
+export class DrizzleCaseDataSource {
+  constructor(private readonly categoryDataSource: DrizzleCategoryDataSource) {}
+
+  private async loadCaseDto(caseId: string): Promise<CaseDto> {
   const rows = await db
     .select({
       caseId: cases.id,
@@ -60,16 +70,18 @@ async function loadCaseDto(caseId: string): Promise<CaseDto> {
     .where(eq(associations.caseId, caseId))
     .orderBy(asc(associations.sortOrder))
 
+  const categoryMap = await this.categoryDataSource.listCategoryRefsByCaseIds([base.caseId])
+
   return {
     id: base.caseId,
     languageName: base.languageName,
     lemmaText: base.lemmaText,
     meaning: base.meaning,
     associations: assocRows.map(mapAssociationRow),
+    categories: categoryMap.get(base.caseId) ?? [],
   }
-}
+  }
 
-export class DrizzleCaseDataSource {
   async listCaseDtosByLanguageId(languageId: string): Promise<readonly CaseDto[]> {
     const rows = await db
       .select({ id: cases.id })
@@ -79,7 +91,7 @@ export class DrizzleCaseDataSource {
 
     const loaded: CaseDto[] = []
     for (const row of rows) {
-      loaded.push(await loadCaseDto(row.id))
+      loaded.push(await this.loadCaseDto(row.id))
     }
     return loaded
   }
@@ -92,7 +104,7 @@ export class DrizzleCaseDataSource {
       lemmaText,
       meaning,
     })
-    return loadCaseDto(id)
+    return this.loadCaseDto(id)
   }
 
   async updateCaseDto(
@@ -110,18 +122,25 @@ export class DrizzleCaseDataSource {
       }
     }
 
-    return loadCaseDto(caseId)
+    return this.loadCaseDto(caseId)
   }
 
   async deleteCaseDto(caseId: string): Promise<void> {
+    const existing = await db.select({ languageId: cases.languageId }).from(cases).where(eq(cases.id, caseId)).limit(1)
+    const languageId = existing[0]?.languageId
+
     const deleted = await db.delete(cases).where(eq(cases.id, caseId)).returning({ id: cases.id })
     if (deleted.length === 0) {
       throw new Error(`Record not found: ${caseId}`)
     }
+
+    if (languageId) {
+      await this.categoryDataSource.pruneEmptyCategoriesForLanguage(languageId)
+    }
   }
 
   async getCaseDtoById(caseId: string): Promise<CaseDto> {
-    return loadCaseDto(caseId)
+    return this.loadCaseDto(caseId)
   }
 
   async appendAssociationDto(caseId: string, association: AssociationDto): Promise<CaseDto> {
@@ -135,7 +154,7 @@ export class DrizzleCaseDataSource {
       createdAt: association.createdAt,
       hiddenFromPractice: association.hiddenFromPractice,
     })
-    return loadCaseDto(caseId)
+    return this.loadCaseDto(caseId)
   }
 
   async updateTextAssociationDto(
@@ -153,7 +172,7 @@ export class DrizzleCaseDataSource {
       throw new Error(`Association not found: ${associationId}`)
     }
 
-    return loadCaseDto(caseId)
+    return this.loadCaseDto(caseId)
   }
 
   async updateImageAssociationContentRefDto(
@@ -179,7 +198,7 @@ export class DrizzleCaseDataSource {
       throw new Error(`Association not found: ${associationId}`)
     }
 
-    return loadCaseDto(caseId)
+    return this.loadCaseDto(caseId)
   }
 
   async updateAssociationHiddenFromPracticeDto(
@@ -197,7 +216,7 @@ export class DrizzleCaseDataSource {
       throw new Error(`Association not found: ${associationId}`)
     }
 
-    return loadCaseDto(caseId)
+    return this.loadCaseDto(caseId)
   }
 
   async reorderAssociationsDto(caseId: string, associationIds: readonly string[]): Promise<CaseDto> {
@@ -221,7 +240,7 @@ export class DrizzleCaseDataSource {
       await db.update(associations).set({ sortOrder: index }).where(eq(associations.id, associationId))
     }
 
-    return loadCaseDto(caseId)
+    return this.loadCaseDto(caseId)
   }
 
   async deleteAssociationDto(caseId: string, associationId: string): Promise<CaseDto> {
@@ -234,6 +253,6 @@ export class DrizzleCaseDataSource {
       throw new Error(`Association not found: ${associationId}`)
     }
 
-    return loadCaseDto(caseId)
+    return this.loadCaseDto(caseId)
   }
 }

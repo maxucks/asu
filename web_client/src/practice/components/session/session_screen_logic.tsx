@@ -15,17 +15,74 @@ import { useSessionUi } from "@/practice/hooks/use_session_ui"
 import { usePracticeSessionController } from "@/practice/practice_session_controller"
 import { isAssociationOnCard } from "@/practice/practice_session_view_state"
 import { associationKindLabel } from "@/practice/practice_utils"
-import { useState } from "react"
+import { CategoryFilterModal } from "@/practice/components/category/category_filter_modal"
+import { CaseCategoryField } from "@/practice/components/category/case_category_field"
+import type { CategoryDto } from "@/practice/practice_repository"
+import { useCallback, useEffect, useState } from "react"
 
 export function SessionScreenLogic() {
-  const { repo, activeLanguageId, setActiveLanguageId } = usePractice()
-  const session = usePracticeSessionController(repo, activeLanguageId)
+  const { repo, activeLanguageId, setActiveLanguageId, activeCategoryId, setActiveCategoryId } = usePractice()
+  const session = usePracticeSessionController(repo, activeLanguageId, activeCategoryId)
   const ui = useSessionUi(session)
   const { name: languageName, icon: languageIcon } = useActiveLanguageMeta()
   const [languageOpen, setLanguageOpen] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
+  const [categoryOpen, setCategoryOpen] = useState(false)
+  const [categories, setCategories] = useState<readonly CategoryDto[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(false)
+  const [totalLanguageCases, setTotalLanguageCases] = useState(0)
+
+  const refreshCategoryMeta = useCallback(async () => {
+    setCategoriesLoading(true)
+    const [cats, list] = await Promise.all([
+      repo.listCategories(activeLanguageId),
+      repo.listCases(activeLanguageId, null),
+    ])
+    setCategoriesLoading(false)
+    if (cats.ok) setCategories(cats.value)
+    if (list.ok) setTotalLanguageCases(list.value.cards.length)
+    return cats.ok ? cats.value : null
+  }, [activeLanguageId, repo])
+
+  useEffect(() => {
+    void refreshCategoryMeta()
+  }, [refreshCategoryMeta])
+
+  useEffect(() => {
+    if (categoryOpen) void refreshCategoryMeta()
+  }, [categoryOpen, refreshCategoryMeta])
+
+  const activeCategory = categories.find((item) => item.id === activeCategoryId) ?? null
+  const activeCategoryName = activeCategory?.name ?? (activeCategoryId ? "Category" : "All cards")
+  const headerCategoryLabel = activeCategoryId ? activeCategoryName : "Category"
+  const headerCategoryCount = activeCategoryId
+    ? (activeCategory?.caseCount ??
+      (session.state.status === "ready" ? session.state.totalCases : 0))
+    : totalLanguageCases
 
   const openLibrary = () => setLibraryOpen(true)
+
+  const headerCategoryProps = {
+    categoryLabel: headerCategoryLabel,
+    categoryCount: headerCategoryCount,
+    categoryActive: activeCategoryId !== null,
+    onOpenCategory: () => setCategoryOpen(true),
+    onClearCategory: () => setActiveCategoryId(null),
+  }
+
+  const handleCaseCategoriesChange = useCallback(
+    async (caseId: string, ids: readonly string[]) => {
+      const ok = await session.setCaseCategories(caseId, ids)
+      if (!ok) return
+      const nextCategories = await refreshCategoryMeta()
+      if (activeCategoryId && nextCategories && !nextCategories.some((item) => item.id === activeCategoryId)) {
+        setActiveCategoryId(null)
+      } else if (activeCategoryId) {
+        void session.reloadQueue()
+      }
+    },
+    [activeCategoryId, refreshCategoryMeta, session, setActiveCategoryId],
+  )
 
   const languageBar = (
     <HeaderLayout
@@ -36,8 +93,22 @@ export function SessionScreenLogic() {
           ? `${session.state.passedCount} passed · ${session.state.totalCases} in deck`
           : "—"
       }
+      {...headerCategoryProps}
       onOpenLanguages={() => setLanguageOpen(true)}
       onOpenCaseLibrary={openLibrary}
+    />
+  )
+
+  const categoryModal = (
+    <CategoryFilterModal
+      open={categoryOpen}
+      categories={categories}
+      activeCategoryId={activeCategoryId}
+      totalInLanguage={totalLanguageCases}
+      loading={categoriesLoading}
+      onClose={() => setCategoryOpen(false)}
+      onSelect={(id) => setActiveCategoryId(id)}
+      onClear={() => setActiveCategoryId(null)}
     />
   )
 
@@ -56,6 +127,7 @@ export function SessionScreenLogic() {
       open={libraryOpen}
       languageId={activeLanguageId}
       languageName={languageName}
+      languageIcon={languageIcon}
       repo={repo}
       onClose={() => setLibraryOpen(false)}
       onVocabularyChange={() => void session.reloadQueue()}
@@ -66,6 +138,7 @@ export function SessionScreenLogic() {
     return (
       <>
         {languageModal}
+        {categoryModal}
         {caseLibrary}
         <div className="mx-auto flex min-h-dvh max-w-lg flex-col gap-4 p-6">
           {languageBar}
@@ -79,6 +152,7 @@ export function SessionScreenLogic() {
     return (
       <>
         {languageModal}
+        {categoryModal}
         {caseLibrary}
         <div className="mx-auto flex min-h-dvh max-w-lg flex-col gap-4 p-6">
           {languageBar}
@@ -96,12 +170,15 @@ export function SessionScreenLogic() {
     return (
       <>
         {languageModal}
+        {categoryModal}
         {caseLibrary}
         <EmptyQueueLayout
           languageIcon={languageIcon}
           languageName={languageName}
           onOpenLanguages={() => setLanguageOpen(true)}
           onOpenCaseLibrary={openLibrary}
+          {...headerCategoryProps}
+          categoryModal={categoryModal}
         />
       </>
     )
@@ -174,12 +251,14 @@ export function SessionScreenLogic() {
     <>
       {languageModal}
       {caseLibrary}
+      {categoryModal}
       <ShellLayout
         languageIcon={languageIcon}
         languageName={languageName}
         onOpenLanguages={() => setLanguageOpen(true)}
         onOpenCaseLibrary={openLibrary}
         progress={`${passedCount} passed · ${totalCases} in deck`}
+        {...headerCategoryProps}
         onFront={onFront}
         editingCase={ui.editingCase}
         caseSaving={ui.caseSaving}
@@ -202,6 +281,22 @@ export function SessionScreenLogic() {
         onPick={ui.pickAssoc}
         sortable={associationSortable}
         onReorder={(ids) => void session.reorderAssociations(ids)}
+        caseCategories={
+          !ui.editingCase && card ? (
+            <CaseCategoryField
+              categories={categories}
+              value={card.categories}
+              disabled={ui.saving || session.categoriesBusy}
+              onCreateCategory={async (name) => {
+                const result = await repo.createCategory(activeLanguageId, name)
+                if (!result.ok) return null
+                await refreshCategoryMeta()
+                return result.value
+              }}
+              onChange={(ids) => void handleCaseCategoriesChange(card.id, ids)}
+            />
+          ) : null
+        }
         onReveal={session.revealAnswer}
         onGrade={(grade) => void session.submitGrade(grade)}
         grading={session.gradingCase}

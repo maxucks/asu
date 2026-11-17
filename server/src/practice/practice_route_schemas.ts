@@ -100,11 +100,32 @@ export const practiceLanguageIdParamsSchema = z.object({
 
 export const practiceQueueQuerySchema = z.object({
   languageId: routeId,
+  categoryId: routeId.optional(),
 })
 
 export const practiceNextCardQuerySchema = z.object({
   languageId: routeId,
   excludeCaseId: routeId.optional(),
+  categoryId: routeId.optional(),
+})
+
+export const practiceSessionQuerySchema = z.object({
+  languageId: routeId,
+  categoryId: routeId.optional(),
+})
+
+const categoryNameField = z
+  .string()
+  .transform((raw) => raw.trim().replace(/\s+/g, " "))
+  .refine((value) => value.length > 0, { message: "Category name cannot be empty." })
+
+export const practiceCreateCategoryBodySchema = z.object({
+  languageId: routeId,
+  name: categoryNameField,
+})
+
+export const practiceSetCaseCategoriesBodySchema = z.object({
+  categoryIds: z.array(routeId),
 })
 
 export const practiceCreateLanguageBodySchema = z.object({

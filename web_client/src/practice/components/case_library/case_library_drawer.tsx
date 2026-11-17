@@ -1,19 +1,20 @@
-import { NewCaseLayout } from "@/practice/components/case/new_case_layout"
+import { CaseLibraryAddCaseControl } from "@/practice/components/case_library/case_library_add_case_control"
 import { CaseLibraryDetail } from "@/practice/components/case_library/case_library_detail"
 import { CaseLibraryTile } from "@/practice/components/case_library/case_library_tile"
-import { IconButton, IconClose, IconPlus } from "@/practice/components/session/icon_button"
+import { IconButton, IconClose } from "@/practice/components/session/icon_button"
 import { parseCaseMeaning } from "@/practice/practice_model"
 import {
   readStoredLibraryCaseId,
   writeStoredLibraryCaseId,
 } from "@/practice/practice_language"
-import type { PracticeCardDto, PracticeRepository } from "@/practice/practice_repository"
+import type { CategoryDto, PracticeCardDto, PracticeRepository } from "@/practice/practice_repository"
 import { useCallback, useEffect, useState } from "react"
 
 type CaseLibraryDrawerProps = {
   readonly open: boolean
   readonly languageId: string
   readonly languageName?: string
+  readonly languageIcon?: string
   readonly repo: PracticeRepository
   readonly onClose: () => void
   readonly onVocabularyChange?: () => void
@@ -37,6 +38,7 @@ export function CaseLibraryDrawer({
   open,
   languageId,
   languageName,
+  languageIcon,
   repo,
   onClose,
   onVocabularyChange,
@@ -45,8 +47,13 @@ export function CaseLibraryDrawer({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [createOpen, setCreateOpen] = useState(false)
   const [createBusy, setCreateBusy] = useState(false)
+  const [categories, setCategories] = useState<readonly CategoryDto[]>([])
+
+  const refreshCategoryMeta = useCallback(async () => {
+    const result = await repo.listCategories(languageId)
+    if (result.ok) setCategories(result.value)
+  }, [languageId, repo])
 
   const selectCase = useCallback(
     (caseId: string | null) => {
@@ -75,7 +82,8 @@ export function CaseLibraryDrawer({
   useEffect(() => {
     if (!open) return
     void loadCases(readStoredLibraryCaseId(languageId))
-  }, [open, languageId, loadCases])
+    void refreshCategoryMeta()
+  }, [open, languageId, loadCases, refreshCategoryMeta])
 
   useEffect(() => {
     if (!open) return
@@ -103,17 +111,17 @@ export function CaseLibraryDrawer({
     onVocabularyChange?.()
   }
 
-  async function handleCreate(lemma: string, meaning: string) {
+  async function handleCreate(lemma: string, meaning: string): Promise<boolean> {
     setCreateBusy(true)
     const result = await repo.createCase(languageId, lemma, parseCaseMeaning(meaning))
     setCreateBusy(false)
     if (!result.ok) {
       setError(result.error.message)
-      return
+      return false
     }
-    setCreateOpen(false)
     await loadCases(result.value.id)
     onVocabularyChange?.()
+    return true
   }
 
   return (
@@ -132,13 +140,14 @@ export function CaseLibraryDrawer({
         onClick={(event) => event.stopPropagation()}
       >
         <header className="flex shrink-0 items-center gap-2 border-b border-grid-line px-4 py-3">
-          <IconButton label="Add entry" tone="accent" onClick={() => setCreateOpen(true)}>
-            <IconPlus />
-          </IconButton>
+          <span className="shrink-0 text-2xl leading-none" aria-hidden title={languageName}>
+            {languageIcon ?? "🌐"}
+          </span>
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-base font-semibold text-foreground">{languageName ?? "Vocabulary"}</h2>
             <p className="text-xs text-muted">{cards.length} entries</p>
           </div>
+          <CaseLibraryAddCaseControl saving={createBusy} onCreate={(lemma, meaning) => handleCreate(lemma, meaning)} />
           <IconButton label="Close library" onClick={onClose}>
             <IconClose />
           </IconButton>
@@ -150,16 +159,9 @@ export function CaseLibraryDrawer({
               {loading ? <p className="text-sm text-muted">Loading…</p> : null}
               {error ? <p className="text-sm text-danger">{error}</p> : null}
               {!loading && cards.length === 0 ? (
-                <div className="rounded-xl border border-grid-line bg-card px-4 py-8 text-center">
+                <div className="flex flex-col items-center gap-3 rounded-xl border border-grid-line bg-card px-4 py-8 text-center">
                   <p className="text-sm text-muted">No entries yet.</p>
-                  <button
-                    type="button"
-                    onClick={() => setCreateOpen(true)}
-                    className="mt-3 inline-flex items-center justify-center rounded-lg border border-grid-line bg-tile p-2 text-accent hover:border-accent/40"
-                    aria-label="Add first entry"
-                  >
-                    <IconPlus />
-                  </button>
+                  <CaseLibraryAddCaseControl saving={createBusy} onCreate={(lemma, meaning) => handleCreate(lemma, meaning)} />
                 </div>
               ) : null}
               {cards.length > 0 ? (
@@ -182,20 +184,17 @@ export function CaseLibraryDrawer({
             <CaseLibraryDetail
               key={selected.id}
               card={selected}
+              languageId={languageId}
+              categories={categories}
               repo={repo}
               onCardChange={handleCardChange}
               onDeleted={handleDeleted}
+              onCategoriesMetaChange={() => void refreshCategoryMeta()}
             />
           ) : null}
         </div>
       </div>
 
-      <NewCaseLayout
-        open={createOpen}
-        saving={createBusy}
-        onCancel={() => setCreateOpen(false)}
-        onCreate={(lemma, meaning) => void handleCreate(lemma, meaning)}
-      />
     </div>
   )
 }

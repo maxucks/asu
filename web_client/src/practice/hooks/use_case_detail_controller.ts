@@ -26,6 +26,7 @@ export function useCaseDetailController(
   const [caseBusy, setCaseBusy] = useState<false | "update" | "delete">(false)
   const [deletingAssociationId, setDeletingAssociationId] = useState<string | null>(null)
   const [reorderingAssociations, setReorderingAssociations] = useState(false)
+  const [categoriesBusy, setCategoriesBusy] = useState(false)
   const [revealedHiddenAssociationIds, setRevealedHiddenAssociationIds] = useState<readonly string[]>([])
 
   useEffect(() => {
@@ -163,6 +164,16 @@ export function useCaseDetailController(
     )
   }, [])
 
+  const setCaseCategories = useCallback(
+    async (categoryIds: readonly string[]) => {
+      setCategoriesBusy(true)
+      const okResult = await runMutation(() => repo.setCaseCategories(card.id, categoryIds))
+      setCategoriesBusy(false)
+      return okResult
+    },
+    [card.id, repo, runMutation],
+  )
+
   return {
     card,
     savingAssociation,
@@ -179,6 +190,8 @@ export function useCaseDetailController(
     deleteAssociation,
     reorderAssociations,
     reorderingAssociations,
+    categoriesBusy,
+    setCaseCategories,
     toggleRevealHiddenAssociation,
   }
 }

@@ -41,7 +41,7 @@ function imageAssoc(
   };
 }
 
-const SEED_CASES: readonly CaseDto[] = [
+const SEED_CASES_RAW = [
   {
     id: "case-1",
     languageName: "English",
@@ -201,7 +201,12 @@ const SEED_CASES: readonly CaseDto[] = [
       ),
     ],
   },
-] as const satisfies readonly CaseDto[]
+] as const satisfies readonly Omit<CaseDto, "categories">[]
+
+const SEED_CASES: readonly CaseDto[] = SEED_CASES_RAW.map((item) => ({
+  ...item,
+  categories: [],
+}))
 
 const SEED_STUDY_RECORDS: readonly StudyRecordDto[] = [
   {

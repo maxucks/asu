@@ -2,21 +2,33 @@ import { assocLibraryFlags } from "@/practice/assoc_flags"
 import type { AssocRow } from "@/practice/components/assoc/list_layout"
 import { AssocTextFormLayout } from "@/practice/components/assoc/text_form_layout"
 import { AssocUrlFormLayout } from "@/practice/components/assoc/url_form_layout"
+import { CaseCategoryField } from "@/practice/components/category/case_category_field"
 import { CaseLibraryDetailLayout } from "@/practice/components/case_library/case_library_detail_layout"
 import { ConfirmBox } from "@/practice/components/session/confirm_box"
 import { useCaseDetailController } from "@/practice/hooks/use_case_detail_controller"
 import { useCaseDetailUi } from "@/practice/hooks/use_case_detail_ui"
-import type { PracticeCardDto, PracticeRepository } from "@/practice/practice_repository"
+import type { CategoryDto, PracticeCardDto, PracticeRepository } from "@/practice/practice_repository"
 import { associationKindLabel } from "@/practice/practice_utils"
 
 type CaseLibraryDetailProps = {
   readonly card: PracticeCardDto
+  readonly languageId: string
+  readonly categories: readonly CategoryDto[]
   readonly repo: PracticeRepository
   readonly onCardChange: (card: PracticeCardDto) => void
   readonly onDeleted: () => void
+  readonly onCategoriesMetaChange: () => void
 }
 
-export function CaseLibraryDetail({ card, repo, onCardChange, onDeleted }: CaseLibraryDetailProps) {
+export function CaseLibraryDetail({
+  card,
+  languageId,
+  categories,
+  repo,
+  onCardChange,
+  onDeleted,
+  onCategoriesMetaChange,
+}: CaseLibraryDetailProps) {
   const detail = useCaseDetailController(repo, card, onCardChange, onDeleted)
   const ui = useCaseDetailUi(detail)
 
@@ -104,6 +116,26 @@ export function CaseLibraryDetail({ card, repo, onCardChange, onDeleted }: CaseL
           onPick={ui.pickAssoc}
           sortable={associationSortable}
           onReorder={(ids) => void detail.reorderAssociations(ids)}
+          caseCategories={
+            !ui.editingCase ? (
+              <CaseCategoryField
+                categories={categories}
+                value={detail.card.categories}
+                disabled={ui.saving || detail.categoriesBusy}
+                onCreateCategory={async (name) => {
+                  const result = await repo.createCategory(languageId, name)
+                  if (!result.ok) return null
+                  onCategoriesMetaChange()
+                  return result.value
+                }}
+                onChange={(ids) =>
+                  void detail.setCaseCategories(ids).then((ok) => {
+                    if (ok) onCategoriesMetaChange()
+                  })
+                }
+              />
+            ) : null
+          }
         />
       </div>
       <ConfirmBox

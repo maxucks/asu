@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core"
 
 export const languages = sqliteTable("languages", {
   id: text("id").primaryKey(),
@@ -34,6 +34,38 @@ export const associations = sqliteTable(
     hiddenFromPractice: integer("hidden_from_practice", { mode: "boolean" }).notNull(),
   },
   (table) => [index("associations_case_id_idx").on(table.caseId)],
+)
+
+export const categories = sqliteTable(
+  "categories",
+  {
+    id: text("id").primaryKey(),
+    languageId: text("language_id")
+      .notNull()
+      .references(() => languages.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+  },
+  (table) => [
+    index("categories_language_id_idx").on(table.languageId),
+    uniqueIndex("categories_language_name_uq").on(table.languageId, table.name),
+  ],
+)
+
+export const caseCategories = sqliteTable(
+  "case_categories",
+  {
+    caseId: text("case_id")
+      .notNull()
+      .references(() => cases.id, { onDelete: "cascade" }),
+    categoryId: text("category_id")
+      .notNull()
+      .references(() => categories.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.caseId, table.categoryId] }),
+    index("case_categories_case_id_idx").on(table.caseId),
+    index("case_categories_category_id_idx").on(table.categoryId),
+  ],
 )
 
 export const studyRecords = sqliteTable("study_records", {

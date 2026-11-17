@@ -1,4 +1,5 @@
 import { Grades } from "@/practice/components/session/grades"
+import { PrimaryActionButton } from "@/practice/components/session/primary_action_button"
 import type { PracticeGradeDto } from "@/practice/practice_repository"
 
 type FooterLayoutProps = {
@@ -12,13 +13,9 @@ export function FooterLayout({ onFront, grading, onReveal, onGrade }: FooterLayo
   return (
     <footer className="mt-auto">
       {onFront ? (
-        <button
-          type="button"
-          onClick={onReveal}
-          className="w-full rounded-xl bg-accent px-4 py-3.5 text-base font-semibold text-accent-foreground transition hover:brightness-110"
-        >
+        <PrimaryActionButton type="button" onClick={onReveal}>
           Show answer
-        </button>
+        </PrimaryActionButton>
       ) : (
         <Grades onGrade={onGrade} disabled={grading} />
       )}

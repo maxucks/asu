@@ -10,10 +10,16 @@ type ShellLayoutProps = CardLayoutProps & {
   readonly progress: string
   readonly onOpenLanguages: () => void
   readonly onOpenCaseLibrary?: () => void
+  readonly categoryLabel?: string
+  readonly categoryCount?: number
+  readonly categoryActive?: boolean
+  readonly onOpenCategory?: () => void
+  readonly onClearCategory?: () => void
   readonly onReveal: () => void
   readonly onGrade: (grade: PracticeGradeDto) => void
   readonly grading?: boolean
   readonly overlays: ReactNode
+  readonly caseCategories?: ReactNode
 }
 
 export function ShellLayout(props: ShellLayoutProps) {
@@ -23,10 +29,16 @@ export function ShellLayout(props: ShellLayoutProps) {
     progress,
     onOpenLanguages,
     onOpenCaseLibrary,
+    categoryLabel,
+    categoryCount,
+    categoryActive,
+    onOpenCategory,
+    onClearCategory,
     onReveal,
     onGrade,
     grading,
     overlays,
+    caseCategories,
     ...card
   } = props
 
@@ -36,10 +48,15 @@ export function ShellLayout(props: ShellLayoutProps) {
         languageIcon={languageIcon}
         languageName={languageName}
         progress={progress}
+        categoryLabel={categoryLabel}
+        categoryCount={categoryCount}
+        categoryActive={categoryActive}
+        onOpenCategory={onOpenCategory}
+        onClearCategory={onClearCategory}
         onOpenLanguages={onOpenLanguages}
         onOpenCaseLibrary={onOpenCaseLibrary}
       />
-      <CardLayout {...card} />
+      <CardLayout {...card} caseCategories={caseCategories} />
       <FooterLayout onFront={card.onFront} grading={grading} onReveal={onReveal} onGrade={onGrade} />
       {overlays}
     </main>
