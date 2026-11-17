@@ -3,6 +3,7 @@ import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
 export const languages = sqliteTable("languages", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  icon: text("icon").notNull().default("🌐"),
 })
 
 export const cases = sqliteTable(

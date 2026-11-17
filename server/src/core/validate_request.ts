@@ -21,6 +21,22 @@ export function parseRouteParams<T extends z.ZodType>(
   return ok(parsed.data)
 }
 
+export function parseQuery<T extends z.ZodType>(
+  query: Record<string, string | string[] | undefined>,
+  schema: T,
+): Result<z.infer<T>, PracticeError> {
+  const flat: Record<string, string> = {}
+  for (const [key, value] of Object.entries(query)) {
+    if (value === undefined) continue
+    flat[key] = Array.isArray(value) ? value[0] : value
+  }
+  const parsed = schema.safeParse(flat)
+  if (!parsed.success) {
+    return err(practiceErrorFromZodIssue(parsed.error))
+  }
+  return ok(parsed.data)
+}
+
 export async function parseJsonBody<T extends z.ZodType>(
   c: Context,
   schema: T,

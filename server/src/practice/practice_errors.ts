@@ -7,6 +7,9 @@ export const PracticeErrorCodes = {
   InvalidGrade: "practice_invalid_grade",
   AssociationSaveFailed: "practice_association_save_failed",
   AssociationNotFound: "practice_association_not_found",
+  LanguageNotFound: "practice_language_not_found",
+  LanguageHasCases: "practice_language_has_cases",
+  LanguageInvalid: "practice_language_invalid",
 } as const
 
 export type PracticeErrorCode = (typeof PracticeErrorCodes)[keyof typeof PracticeErrorCodes]
@@ -20,6 +23,10 @@ export const PracticeErrorMessages = {
   AssociationSaveFailed: "Could not save association.",
   PracticeDataFailed: "Practice data failed.",
   CaseLemmaEmpty: "Word / lemma cannot be empty.",
+  LanguageNameEmpty: "Language name cannot be empty.",
+  LanguageIconEmpty: "Pick an icon for the language.",
+  LanguageHasCases: "Delete all vocabulary entries in this language first.",
+  LanguageNotFound: "Language not found.",
 } as const
 
 export class PracticeError extends AppError<PracticeErrorCode> {
@@ -69,6 +76,45 @@ export const PracticeErrCaseLemmaEmpty = new PracticeError(
   PracticeErrorMessages.CaseLemmaEmpty,
 )
 
+export const PracticeErrLanguageNotFound = new PracticeError(
+  PracticeErrorCodes.LanguageNotFound,
+  PracticeErrorMessages.LanguageNotFound,
+)
+
+export const PracticeErrLanguageHasCases = new PracticeError(
+  PracticeErrorCodes.LanguageHasCases,
+  PracticeErrorMessages.LanguageHasCases,
+)
+
+export const PracticeErrLanguageInvalid = new PracticeError(
+  PracticeErrorCodes.LanguageInvalid,
+  PracticeErrorMessages.LanguageIconEmpty,
+)
+
+export function practiceLanguageNotFoundError(message: string): PracticeError {
+  return new PracticeError(PracticeErrorCodes.LanguageNotFound, message)
+}
+
+export function practiceLanguageHasCasesError(message: string): PracticeError {
+  return new PracticeError(PracticeErrorCodes.LanguageHasCases, message)
+}
+
+export function practiceLanguageInvalidError(message: string): PracticeError {
+  return new PracticeError(PracticeErrorCodes.LanguageInvalid, message)
+}
+
+export function practiceLanguageErrorFromThrown(thrown: unknown): PracticeError {
+  if (thrown instanceof Error) {
+    if (thrown.message.startsWith("Language not found")) {
+      return practiceLanguageNotFoundError(thrown.message)
+    }
+    if (thrown.message.startsWith("Language has cases")) {
+      return practiceLanguageHasCasesError(PracticeErrorMessages.LanguageHasCases)
+    }
+  }
+  return PracticeErrLanguageInvalid
+}
+
 export function practiceCardNotFoundError(message: string): PracticeError {
   return new PracticeError(PracticeErrorCodes.CardNotFound, message)
 }
@@ -113,7 +159,10 @@ export function practiceErrorHttpStatus(code: PracticeErrorCode): ContentfulStat
     case PracticeErrorCodes.CardNotFound:
     case PracticeErrorCodes.AssociationNotFound:
     case PracticeErrorCodes.NoCards:
+    case PracticeErrorCodes.LanguageNotFound:
       return 404
+    case PracticeErrorCodes.LanguageHasCases:
+      return 409
     default:
       return 400
   }

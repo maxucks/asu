@@ -2,6 +2,7 @@ import { ok } from "@/core/hono_response"
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { DrizzleCaseDataSource } from "@/core/data_sources/case_data_source_drizzle"
+import { DrizzleLanguageDataSource } from "@/core/data_sources/language_data_source_drizzle"
 import { DrizzleStudyRecordDataSource } from "@/core/data_sources/study_record_data_source_drizzle"
 import { databasePath } from "@/core/db"
 import { log } from "@/core/logger"
@@ -11,6 +12,7 @@ import { createPracticeRoutes } from "@/practice/practice_routes"
 const repository = new PracticeRepository(
   new DrizzleStudyRecordDataSource(),
   new DrizzleCaseDataSource(),
+  new DrizzleLanguageDataSource(),
 )
 
 function corsOrigins(): string[] {

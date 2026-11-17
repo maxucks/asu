@@ -227,7 +227,7 @@ async function seed() {
   await db.delete(cases)
   await db.delete(languages)
 
-  await db.insert(languages).values({ id: DEFAULT_LANGUAGE_ID, name: "English" })
+  await db.insert(languages).values({ id: DEFAULT_LANGUAGE_ID, name: "English", icon: "🇬🇧" })
 
   for (const entry of SEED_CASES) {
     await insertCase(entry)

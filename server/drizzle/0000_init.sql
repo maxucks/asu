@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS `languages` (
 	`id` text PRIMARY KEY NOT NULL,
-	`name` text NOT NULL
+	`name` text NOT NULL,
+	`icon` text DEFAULT '🌐' NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS `cases` (

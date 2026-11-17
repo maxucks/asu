@@ -1,3 +1,4 @@
+import { DEFAULT_LANGUAGE_ID } from "@/core/data_sources/language_data_source_drizzle"
 import { asc, eq } from "drizzle-orm"
 
 export const AssociationKinds = ["text", "image", "audio", "sketch", "video"] as const
@@ -66,13 +67,12 @@ async function loadCaseDto(caseId: string): Promise<CaseDto> {
   }
 }
 
-const DEFAULT_LANGUAGE_ID = "lang-english"
-
 export class DrizzleCaseDataSource {
-  async listAllCaseDtos(): Promise<readonly CaseDto[]> {
+  async listCaseDtosByLanguageId(languageId: string): Promise<readonly CaseDto[]> {
     const rows = await db
       .select({ id: cases.id })
       .from(cases)
+      .where(eq(cases.languageId, languageId))
       .orderBy(asc(cases.lemmaText))
 
     const loaded: CaseDto[] = []
@@ -82,11 +82,11 @@ export class DrizzleCaseDataSource {
     return loaded
   }
 
-  async createCaseDto(lemmaText: string, meaning: string | null): Promise<CaseDto> {
+  async createCaseDto(lemmaText: string, meaning: string | null, languageId: string = DEFAULT_LANGUAGE_ID): Promise<CaseDto> {
     const id = `case-${crypto.randomUUID()}`
     await db.insert(cases).values({
       id,
-      languageId: DEFAULT_LANGUAGE_ID,
+      languageId,
       lemmaText,
       meaning,
     })

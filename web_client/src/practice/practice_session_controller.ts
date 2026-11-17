@@ -10,7 +10,6 @@ import {
   PracticeErrAssociationEmptyText,
   PracticeErrAssociationInvalidImageUrl,
   PracticeErrCaseLemmaEmpty,
-  PracticeErrQueueEmpty,
   type PracticeError,
 } from "@/practice/practice_errors"
 import { PracticeCard } from "@/practice/practice_model"
@@ -43,7 +42,7 @@ function isPracticeGrade(value: string): value is PracticeGradeDto {
   return (PracticeGrades as readonly string[]).includes(value)
 }
 
-export function usePracticeSessionController(practiceRepository: PracticeRepository) {
+export function usePracticeSessionController(practiceRepository: PracticeRepository, languageId: string) {
   const [state, setState] = useState<PracticeSessionViewState>(createPracticeSessionViewStateLoading())
   const [savingAssociation, setSavingAssociation] = useState<AssociationComposeMode | null>(null)
   const [deletingAssociationId, setDeletingAssociationId] = useState<string | null>(null)
@@ -56,7 +55,8 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
     let cancelled = false
 
     async function load() {
-      const result = await practiceRepository.getQueue()
+      setState(createPracticeSessionViewStateLoading())
+      const result = await practiceRepository.getQueue(languageId)
       if (cancelled) return
 
       if (!result.ok) {
@@ -65,11 +65,6 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
       }
 
       const cards = result.value.cards.map((dto) => PracticeCard.fromDto(dto))
-      if (cards.length === 0) {
-        setState(createPracticeSessionViewStateError(PracticeErrQueueEmpty))
-        return
-      }
-
       setState(createPracticeSessionViewStateReady(cards))
     }
 
@@ -77,7 +72,7 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
     return () => {
       cancelled = true
     }
-  }, [practiceRepository])
+  }, [practiceRepository, languageId])
 
   const currentCard = useMemo(() => selectCurrentCard(state), [state])
 
@@ -270,17 +265,13 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
   )
 
   const reloadQueue = useCallback(async (): Promise<boolean> => {
-    const result = await practiceRepository.getQueue()
+    const result = await practiceRepository.getQueue(languageId)
     if (!result.ok) {
       setState(createPracticeSessionViewStateError(result.error))
       return false
     }
 
     const cards = result.value.cards.map((dto) => PracticeCard.fromDto(dto))
-    if (cards.length === 0) {
-      setState(createPracticeSessionViewStateError(PracticeErrQueueEmpty))
-      return false
-    }
 
     setState((prev) => {
       if (!isPracticeSessionReadyViewState(prev)) {
@@ -289,7 +280,7 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
       return createPracticeSessionViewStateAfterVocabularyReload(prev, cards)
     })
     return true
-  }, [practiceRepository])
+  }, [practiceRepository, languageId])
 
   const createVocabularyCase = useCallback(
     async (lemma: string, meaning: string): Promise<boolean> => {
@@ -300,7 +291,7 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
         setVocabularyBusyCaseId(null)
         return false
       }
-      const result = await practiceRepository.createCase(lemmaText, parseCaseMeaning(meaning))
+      const result = await practiceRepository.createCase(languageId, lemmaText, parseCaseMeaning(meaning))
       if (!result.ok) {
         setState(createPracticeSessionViewStateError(result.error))
         setVocabularyBusyCaseId(null)
@@ -310,7 +301,7 @@ export function usePracticeSessionController(practiceRepository: PracticeReposit
       setVocabularyBusyCaseId(null)
       return ok
     },
-    [practiceRepository, reloadQueue],
+    [languageId, practiceRepository, reloadQueue],
   )
 
   const updateVocabularyCase = useCallback(

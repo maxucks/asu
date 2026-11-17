@@ -34,8 +34,12 @@ export class HttpCaseDataSource {
     private readonly baseUrl: string = asuApiBaseUrl(),
   ) {}
 
-  async fetchPracticeQueue(): Promise<PracticeQueueDto> {
-    const queue = await requestJson<PracticeQueueDto>(this.baseUrl, "GET", "/api/practice/queue")
+  async fetchPracticeQueue(languageId: string): Promise<PracticeQueueDto> {
+    const queue = await requestJson<PracticeQueueDto>(
+      this.baseUrl,
+      "GET",
+      `/api/practice/queue?languageId=${encodeURIComponent(languageId)}`,
+    )
     this.queueCardsById.clear()
     for (const card of queue.cards) {
       this.queueCardsById.set(card.id, card)
@@ -43,8 +47,8 @@ export class HttpCaseDataSource {
     return queue
   }
 
-  async createCaseDto(lemmaText: string, meaning: string | null): Promise<CaseDto> {
-    return this.postCard("/api/practice/cases", { lemmaText, meaning })
+  async createCaseDto(languageId: string, lemmaText: string, meaning: string | null): Promise<CaseDto> {
+    return this.postCard("/api/practice/cases", { languageId, lemmaText, meaning })
   }
 
   async updateCaseDto(

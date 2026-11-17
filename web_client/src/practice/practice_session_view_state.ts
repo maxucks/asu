@@ -109,7 +109,7 @@ export function createPracticeSessionViewStateAfterVocabularyReload(
   cards: readonly PracticeCard[],
 ): PracticeSessionViewState {
   if (cards.length === 0) {
-    return createPracticeSessionViewStateFinished()
+    return createPracticeSessionViewStateReady([])
   }
 
   const activeId = ready.cards[ready.cardIndex]?.id

@@ -10,6 +10,15 @@ cp .env.example .env
 bun run db:setup
 ```
 
+If you already had a database before language icons were added, apply pending SQL migrations once:
+
+```bash
+cd server
+bun run db:migrate
+```
+
+(`db:push` also adds `languages.icon` on existing files when you re-run it.)
+
 ```bash
 bun run dev
 ```

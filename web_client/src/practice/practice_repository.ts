@@ -7,24 +7,66 @@ import type {
   PracticeQueueDto,
 } from "@/core/data_sources/http_case_data_source";
 import type { HttpCaseDataSource } from "@/core/data_sources/http_case_data_source";
+import type { HttpLanguageDataSource } from "@/core/data_sources/http_language_data_source";
+import type { LanguageDto } from "@/core/data_sources/http_language_data_source";
 import {
   practiceAssociationErrorFromThrown,
   practiceCardNotFoundError,
   PracticeErrAssociationNotOnCard,
   PracticeErrAssociationWrongKind,
-  PracticeErrQueueEmpty,
+  practiceLanguageErrorFromThrown,
   practiceQueueErrorFromThrown,
   type PracticeError,
 } from "@/practice/practice_errors";
 
 export type { PracticeCardDto, PracticeQueueDto } from "@/core/data_sources/http_case_data_source";
+export type { LanguageDto } from "@/core/data_sources/http_language_data_source";
 
 export const PracticeGrades = ["hard", "medium", "easy"] as const;
 
 export type PracticeGradeDto = (typeof PracticeGrades)[number];
 
 export class PracticeRepository {
-  constructor(private readonly caseDataSource: HttpCaseDataSource) {}
+  constructor(
+    private readonly caseDataSource: HttpCaseDataSource,
+    private readonly languageDataSource: HttpLanguageDataSource,
+  ) {}
+
+  async listLanguages(): Promise<Result<readonly LanguageDto[], PracticeError>> {
+    try {
+      return ok(await this.languageDataSource.listLanguages());
+    } catch (thrown) {
+      return err(practiceLanguageErrorFromThrown(thrown));
+    }
+  }
+
+  async createLanguage(name: string, icon: string): Promise<Result<LanguageDto, PracticeError>> {
+    try {
+      return ok(await this.languageDataSource.createLanguage(name, icon));
+    } catch (thrown) {
+      return err(practiceLanguageErrorFromThrown(thrown));
+    }
+  }
+
+  async updateLanguage(
+    languageId: string,
+    patch: { readonly name?: string; readonly icon?: string },
+  ): Promise<Result<LanguageDto, PracticeError>> {
+    try {
+      return ok(await this.languageDataSource.updateLanguage(languageId, patch));
+    } catch (thrown) {
+      return err(practiceLanguageErrorFromThrown(thrown));
+    }
+  }
+
+  async deleteLanguage(languageId: string): Promise<Result<void, PracticeError>> {
+    try {
+      await this.languageDataSource.deleteLanguage(languageId);
+      return ok(undefined);
+    } catch (thrown) {
+      return err(practiceLanguageErrorFromThrown(thrown));
+    }
+  }
 
   async appendTextAssociation(
     caseId: string,
@@ -158,12 +200,9 @@ export class PracticeRepository {
     }
   }
 
-  async getQueue(): Promise<Result<PracticeQueueDto, PracticeError>> {
+  async getQueue(languageId: string): Promise<Result<PracticeQueueDto, PracticeError>> {
     try {
-      const queue = await this.caseDataSource.fetchPracticeQueue();
-      if (queue.cards.length === 0) {
-        return err(PracticeErrQueueEmpty);
-      }
+      const queue = await this.caseDataSource.fetchPracticeQueue(languageId);
       return ok(queue);
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown));
@@ -171,11 +210,12 @@ export class PracticeRepository {
   }
 
   async createCase(
+    languageId: string,
     lemmaText: string,
     meaning: string | null,
   ): Promise<Result<PracticeCardDto, PracticeError>> {
     try {
-      const caseDto = await this.caseDataSource.createCaseDto(lemmaText, meaning);
+      const caseDto = await this.caseDataSource.createCaseDto(languageId, lemmaText, meaning);
       return ok(caseDto);
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown));

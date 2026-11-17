@@ -1,3 +1,4 @@
+import { singleEmoji } from "@/core/single_emoji"
 import { PracticeErrorMessages } from "@/practice/practice_errors"
 import { z } from "zod"
 
@@ -64,7 +65,40 @@ const caseLemmaField = z
     message: PracticeErrorMessages.CaseLemmaEmpty,
   })
 
+const languageIconField = z
+  .string()
+  .transform((raw) => singleEmoji(raw))
+  .refine((value) => value.length > 0, { message: "Pick an icon for the language." })
+
+const languageNameField = z
+  .string()
+  .transform((raw) => raw.trim())
+  .refine((value) => value.length > 0, { message: "Language name cannot be empty." })
+
+export const practiceLanguageIdParamsSchema = z.object({
+  languageId: routeId,
+})
+
+export const practiceQueueQuerySchema = z.object({
+  languageId: routeId,
+})
+
+export const practiceCreateLanguageBodySchema = z.object({
+  name: languageNameField,
+  icon: languageIconField,
+})
+
+export const practiceUpdateLanguageBodySchema = z
+  .object({
+    name: languageNameField.optional(),
+    icon: languageIconField.optional(),
+  })
+  .refine((value) => value.name !== undefined || value.icon !== undefined, {
+    message: "Provide name or icon to update.",
+  })
+
 export const practiceCreateCaseBodySchema = z.object({
+  languageId: routeId,
   lemmaText: caseLemmaField,
   meaning: z
     .string()

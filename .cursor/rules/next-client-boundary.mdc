@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Client components (Next.js)
 
-- Put `"use client"` on **`app/page.tsx`** as the server → client entry (wire repository + screen there).
+- Keep **`app/page.tsx`** a **server** module with a default export; wire repository + screen in **`app/practice_home.tsx`** (or similar) with `"use client"`.
 - Do **not** add `"use client"` to every component module or hook under `components/`; they are already in the client bundle when imported below `app/page.tsx`.
 - Extra `"use client"` files make the Next TypeScript plugin treat each file as a boundary entry and warn that props like `onConfirm`, `onGrade`, and `practiceRepository` are not serializable (Server Action naming is **not** the fix — shrinking the boundary is).
 - Server → client props must be JSON-serializable; pass callbacks and repository instances only **between client components** under the page entry.

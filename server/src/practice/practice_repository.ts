@@ -1,6 +1,8 @@
 import { err, ok } from "@/core/app_errors"
 import type { Result } from "@/core/app_errors"
 import { DrizzleCaseDataSource } from "@/core/data_sources/case_data_source_drizzle"
+import type { LanguageDto } from "@/core/data_sources/language_data_source_drizzle"
+import { DrizzleLanguageDataSource } from "@/core/data_sources/language_data_source_drizzle"
 import { DrizzleStudyRecordDataSource } from "@/core/data_sources/study_record_data_source_drizzle"
 import type {
   AssociationDto,
@@ -27,8 +29,8 @@ import {
   practiceAssociationErrorFromThrown,
   PracticeErrAssociationNotOnCard,
   PracticeErrAssociationWrongKind,
-  PracticeErrQueueEmpty,
   practiceCardNotFoundError,
+  practiceLanguageErrorFromThrown,
   practiceQueueErrorFromThrown,
   type PracticeError,
 } from "@/practice/practice_errors"
@@ -37,7 +39,44 @@ export class PracticeRepository {
   constructor(
     private readonly studyRecordDataSource: DrizzleStudyRecordDataSource,
     private readonly caseDataSource: DrizzleCaseDataSource,
+    private readonly languageDataSource: DrizzleLanguageDataSource,
   ) {}
+
+  async listLanguages(): Promise<Result<readonly LanguageDto[], PracticeError>> {
+    try {
+      return ok(await this.languageDataSource.listLanguageDtos())
+    } catch (thrown) {
+      return err(practiceLanguageErrorFromThrown(thrown))
+    }
+  }
+
+  async createLanguage(name: string, icon: string): Promise<Result<LanguageDto, PracticeError>> {
+    try {
+      return ok(await this.languageDataSource.createLanguageDto(name, icon))
+    } catch (thrown) {
+      return err(practiceLanguageErrorFromThrown(thrown))
+    }
+  }
+
+  async updateLanguage(
+    languageId: string,
+    patch: { readonly name?: string; readonly icon?: string },
+  ): Promise<Result<LanguageDto, PracticeError>> {
+    try {
+      return ok(await this.languageDataSource.updateLanguageDto(languageId, patch))
+    } catch (thrown) {
+      return err(practiceLanguageErrorFromThrown(thrown))
+    }
+  }
+
+  async deleteLanguage(languageId: string): Promise<Result<void, PracticeError>> {
+    try {
+      await this.languageDataSource.deleteLanguageDto(languageId)
+      return ok(undefined)
+    } catch (thrown) {
+      return err(practiceLanguageErrorFromThrown(thrown))
+    }
+  }
 
   async appendTextAssociation(
     caseId: string,
@@ -162,11 +201,11 @@ export class PracticeRepository {
     }
   }
 
-  async getQueue(): Promise<Result<PracticeQueueDto, PracticeError>> {
+  async getQueue(languageId: string): Promise<Result<PracticeQueueDto, PracticeError>> {
     try {
-      const allCases = await this.caseDataSource.listAllCaseDtos()
+      const allCases = await this.caseDataSource.listCaseDtosByLanguageId(languageId)
       if (allCases.length === 0) {
-        return err(PracticeErrQueueEmpty)
+        return ok({ cards: [] })
       }
 
       const shuffled = PracticeRepository.shuffle([...allCases])
@@ -178,11 +217,12 @@ export class PracticeRepository {
   }
 
   async createCase(
+    languageId: string,
     lemmaText: string,
     meaning: string | null,
   ): Promise<Result<PracticeCardDto, PracticeError>> {
     try {
-      const caseDto = await this.caseDataSource.createCaseDto(lemmaText, meaning)
+      const caseDto = await this.caseDataSource.createCaseDto(lemmaText, meaning, languageId)
       return ok(PracticeRepository.caseDtoToPracticeCard(caseDto))
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown))
