@@ -1,4 +1,5 @@
 import { EmojiPop } from "@/core/components/atoms/emoji_pop"
+import { EmojiPickerTriggerIcon } from "@/core/components/atoms/emoji_picker_trigger_icon"
 import { insertTextAtCaret } from "@/core/utils/insert_text_at_caret"
 import { mergeClassNames } from "@/core/utils/merge_class_names"
 import {
@@ -105,17 +106,6 @@ function useEmojiInsert<T extends HTMLInputElement | HTMLTextAreaElement>(
   return { fieldRef, anchorRef, pickerOpen, setPickerOpen, onEmojiPick, togglePicker, fieldSelectionHandlers }
 }
 
-function IconEmojiHint() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden className="opacity-70">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M9 10h.01" />
-      <path d="M15 10h.01" />
-      <path d="M9.5 15a4.5 4.5 0 0 0 5 0" />
-    </svg>
-  )
-}
-
 function EmojiTriggerButton({
   disabled,
   multiline,
@@ -139,7 +129,7 @@ function EmojiTriggerButton({
       aria-label="Insert emoji"
       title="Insert emoji"
     >
-      <IconEmojiHint />
+      <EmojiPickerTriggerIcon />
     </button>
   )
 }

@@ -47,3 +47,33 @@ body {
   color: var(--foreground);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
+
+@keyframes add-menu-enter-down {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes add-menu-enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility animate-add-menu-down {
+  animation: add-menu-enter-down 0.18s ease-out;
+}
+
+@utility animate-add-menu-up {
+  animation: add-menu-enter-up 0.18s ease-out;
+}
