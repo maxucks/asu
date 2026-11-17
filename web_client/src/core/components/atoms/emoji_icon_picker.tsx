@@ -9,7 +9,13 @@ type EmojiIconPickerProps = {
   readonly busy?: boolean
   readonly ariaLabel: string
   readonly className?: string
+  readonly variant?: "default" | "compact"
 }
+
+const variantClass = {
+  default: "size-11 text-2xl hover:border-accent/40 hover:bg-tile",
+  compact: "size-9 text-xl hover:border-muted hover:bg-tile",
+} as const
 
 export function EmojiIconPicker({
   value,
@@ -18,6 +24,7 @@ export function EmojiIconPicker({
   busy,
   ariaLabel,
   className,
+  variant = "default",
 }: EmojiIconPickerProps) {
   const anchorRef = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
@@ -50,7 +57,7 @@ export function EmojiIconPicker({
         }}
         className={
           className ??
-          "flex size-11 shrink-0 items-center justify-center rounded-xl border border-grid-line bg-tile text-2xl transition hover:border-accent/50 hover:bg-accent/10 disabled:opacity-40"
+          `flex shrink-0 items-center justify-center rounded-lg border border-grid-line bg-tile transition disabled:opacity-40 ${variantClass[variant]}`
         }
       >
         <span aria-hidden>{singleEmoji(value) || "🌐"}</span>

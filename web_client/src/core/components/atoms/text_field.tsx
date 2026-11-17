@@ -1,5 +1,6 @@
 import { EmojiPop } from "@/core/components/atoms/emoji_pop"
 import { insertTextAtCaret } from "@/core/utils/insert_text_at_caret"
+import { mergeClassNames } from "@/core/utils/merge_class_names"
 import {
   forwardRef,
   useCallback,
@@ -104,6 +105,17 @@ function useEmojiInsert<T extends HTMLInputElement | HTMLTextAreaElement>(
   return { fieldRef, anchorRef, pickerOpen, setPickerOpen, onEmojiPick, togglePicker, fieldSelectionHandlers }
 }
 
+function IconEmojiHint() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden className="opacity-70">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9 10h.01" />
+      <path d="M15 10h.01" />
+      <path d="M9.5 15a4.5 4.5 0 0 0 5 0" />
+    </svg>
+  )
+}
+
 function EmojiTriggerButton({
   disabled,
   multiline,
@@ -113,21 +125,21 @@ function EmojiTriggerButton({
   readonly multiline: boolean
   readonly onClick: () => void
 }) {
+  const position = multiline
+    ? "absolute top-1.5 right-1.5"
+    : "absolute top-1/2 right-1.5 -translate-y-1/2"
+
   return (
     <button
       type="button"
       disabled={disabled}
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
-      className={
-        multiline
-          ? "absolute top-1.5 right-1.5 flex size-8 items-center justify-center rounded-md text-lg text-muted hover:bg-tile hover:text-foreground disabled:opacity-40"
-          : "absolute top-1/2 right-1.5 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-lg text-muted hover:bg-tile hover:text-foreground disabled:opacity-40"
-      }
+      className={`${position} flex size-7 items-center justify-center rounded-md text-muted/50 transition hover:bg-tile/80 hover:text-muted disabled:opacity-30`}
       aria-label="Insert emoji"
       title="Insert emoji"
     >
-      <span aria-hidden>😀</span>
+      <IconEmojiHint />
     </button>
   )
 }
@@ -148,13 +160,9 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
         value={value}
         disabled={disabled}
         onChange={onChange}
-        className={className ?? textFieldClassName}
+        className={mergeClassNames(textFieldClassName, className)}
       />
-      <EmojiTriggerButton
-        disabled={disabled}
-        multiline={false}
-        onClick={togglePicker}
-      />
+      <EmojiTriggerButton disabled={disabled} multiline={false} onClick={togglePicker} />
       {pickerOpen && !disabled ? (
         <EmojiPop anchorRef={anchorRef} onPick={onEmojiPick} onClose={() => setPickerOpen(false)} />
       ) : null}
@@ -178,7 +186,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
         value={value}
         disabled={disabled}
         onChange={onChange}
-        className={className ?? textFieldClassName}
+        className={mergeClassNames(textFieldClassName, className)}
       />
       <EmojiTriggerButton disabled={disabled} multiline onClick={togglePicker} />
       {pickerOpen && !disabled ? (
