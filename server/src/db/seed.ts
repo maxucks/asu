@@ -3,6 +3,7 @@ import type { StudyRecordDto } from "@/core/data_sources/study_record_data_sourc
 import { db, databasePath } from "@/core/db"
 import { log } from "@/core/logger"
 import { associations, cases, languages, studyRecords } from "@/db/schema"
+import { createInitialStudyRecord } from "@/practice/practice_srs"
 
 const BASE = "2026-03-10T10:00:00.000Z";
 
@@ -208,44 +209,16 @@ const SEED_CASES: readonly CaseDto[] = SEED_CASES_RAW.map((item) => ({
   categories: [],
 }))
 
+function seedRecord(caseId: string, patch: Partial<StudyRecordDto>): StudyRecordDto {
+  return { ...createInitialStudyRecord(caseId), ...patch }
+}
+
 const SEED_STUDY_RECORDS: readonly StudyRecordDto[] = [
-  {
-    caseId: "case-1",
-    reviewStatus: "repeating",
-    dueAt: "2026-03-10T09:00:00.000Z",
-    schedulingStrengthNumeric: 3,
-    repetitionsCount: 5,
-    lastRepetitionAt: "2026-03-08T09:00:00.000Z",
-    lastGradeNumeric: 1,
-  },
-  {
-    caseId: "case-2",
-    reviewStatus: "learning",
-    dueAt: "2026-03-10T09:05:00.000Z",
-    schedulingStrengthNumeric: 0,
-    repetitionsCount: 1,
-    lastRepetitionAt: "2026-03-10T08:55:00.000Z",
-    lastGradeNumeric: 1,
-  },
-  {
-    caseId: "case-3",
-    reviewStatus: "learning",
-    dueAt: "2026-03-10T09:10:00.000Z",
-    schedulingStrengthNumeric: 0,
-    repetitionsCount: 1,
-    lastRepetitionAt: "2026-03-10T09:00:00.000Z",
-    lastGradeNumeric: 2,
-  },
+  seedRecord("case-1", { levelNumeric: 2, pointsNumeric: 40 }),
+  seedRecord("case-2", { levelNumeric: 0, pointsNumeric: 12 }),
+  seedRecord("case-3", { levelNumeric: 1, pointsNumeric: 8 }),
   ...["case-4", "case-5", "case-6", "case-7", "case-8", "case-9", "case-10", "case-11", "case-12", "case-13", "case-14"].map(
-    (caseId): StudyRecordDto => ({
-      caseId,
-      reviewStatus: "new",
-      dueAt: null,
-      schedulingStrengthNumeric: 0,
-      repetitionsCount: 0,
-      lastRepetitionAt: null,
-      lastGradeNumeric: null,
-    }),
+    (caseId) => seedRecord(caseId, {}),
   ),
 ]
 
@@ -268,12 +241,12 @@ async function seed() {
   for (const record of SEED_STUDY_RECORDS) {
     await db.insert(studyRecords).values({
       caseId: record.caseId,
-      reviewStatus: record.reviewStatus,
-      dueAt: record.dueAt,
-      schedulingStrengthNumeric: record.schedulingStrengthNumeric,
-      repetitionsCount: record.repetitionsCount,
-      lastRepetitionAt: record.lastRepetitionAt,
-      lastGradeNumeric: record.lastGradeNumeric,
+      levelNumeric: record.levelNumeric,
+      pointsNumeric: record.pointsNumeric,
+      studyMode: record.studyMode,
+      lockedUntil: record.lockedUntil,
+      modeUntil: record.modeUntil,
+      streakCount: record.streakCount,
     })
   }
 

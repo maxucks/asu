@@ -1,7 +1,8 @@
 import { CardLayout, type CardLayoutProps } from "@/practice/components/session/card_layout"
-import { FooterLayout } from "@/practice/components/session/footer_layout"
 import { HeaderLayout } from "@/practice/components/session/header_layout"
-import type { PracticeGradeDto } from "@/practice/practice_repository"
+import { PracticeAnswerRail } from "@/practice/components/session/practice_answer_rail"
+import type { PracticeRecallIntent } from "@/practice/practice_session_controller"
+import type { StudyRecordSnapshotDto } from "@/practice/practice_study_types"
 import type { ReactNode } from "react"
 
 type ShellLayoutProps = CardLayoutProps & {
@@ -15,9 +16,15 @@ type ShellLayoutProps = CardLayoutProps & {
   readonly categoryActive?: boolean
   readonly onOpenCategory?: () => void
   readonly onClearCategory?: () => void
-  readonly onReveal: () => void
-  readonly onGrade: (grade: PracticeGradeDto) => void
+  readonly sessionPhase: "front" | "back"
   readonly grading?: boolean
+  readonly revealLemma?: string
+  readonly studyRecord: StudyRecordSnapshotDto | null
+  readonly recallIntent: PracticeRecallIntent
+  readonly onDontKnow: () => void
+  readonly onKnow: () => void
+  readonly onBackLeft: () => void
+  readonly onBackRight: () => void
   readonly overlays: ReactNode
   readonly caseCategories?: ReactNode
 }
@@ -34,31 +41,49 @@ export function ShellLayout(props: ShellLayoutProps) {
     categoryActive,
     onOpenCategory,
     onClearCategory,
-    onReveal,
-    onGrade,
+    sessionPhase,
     grading,
+    revealLemma,
+    studyRecord,
+    recallIntent,
+    onDontKnow,
+    onKnow,
+    onBackLeft,
+    onBackRight,
     overlays,
     caseCategories,
     ...card
   } = props
 
   return (
-    <main className="relative mx-auto flex min-h-dvh max-w-lg flex-col gap-6 p-6 pb-10">
-      <HeaderLayout
-        languageIcon={languageIcon}
-        languageName={languageName}
-        progress={progress}
-        categoryLabel={categoryLabel}
-        categoryCount={categoryCount}
-        categoryActive={categoryActive}
-        onOpenCategory={onOpenCategory}
-        onClearCategory={onClearCategory}
-        onOpenLanguages={onOpenLanguages}
-        onOpenCaseLibrary={onOpenCaseLibrary}
-      />
-      <CardLayout {...card} caseCategories={caseCategories} />
-      <FooterLayout onFront={card.onFront} grading={grading} onReveal={onReveal} onGrade={onGrade} />
+    <>
+      <PracticeAnswerRail
+        phase={sessionPhase}
+        recallIntent={recallIntent}
+        grading={grading}
+        revealLemma={revealLemma}
+        onDontKnow={onDontKnow}
+        onKnow={onKnow}
+        onBackLeft={onBackLeft}
+        onBackRight={onBackRight}
+        header={
+          <HeaderLayout
+            languageIcon={languageIcon}
+            languageName={languageName}
+            progress={progress}
+            categoryLabel={categoryLabel}
+            categoryCount={categoryCount}
+            categoryActive={categoryActive}
+            onOpenCategory={onOpenCategory}
+            onClearCategory={onClearCategory}
+            onOpenLanguages={onOpenLanguages}
+            onOpenCaseLibrary={onOpenCaseLibrary}
+          />
+        }
+      >
+        <CardLayout {...card} studyRecord={studyRecord} caseCategories={caseCategories} />
+      </PracticeAnswerRail>
       {overlays}
-    </main>
+    </>
   )
 }

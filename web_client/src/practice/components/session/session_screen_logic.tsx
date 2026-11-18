@@ -185,13 +185,16 @@ export function SessionScreenLogic() {
   }
 
   const { phase, passedCount, totalCases } = session.state
-  const onFront = phase === "front"
+  const sessionOnFront = phase === "front"
   const card = session.currentCard
-  const managing = onFront && (ui.editor === null || ui.editor.intent === "edit") && !ui.adding && !ui.editingCase
-  const associationSortable = managing && onFront && !ui.editingCase
+  const cardRecallPresentation = true
+  const visibilityPhase = sessionOnFront ? phase : "front"
+  const associationManaging =
+    !ui.editingCase && (ui.editor === null || ui.editor.intent === "edit")
+  const associationSortable = associationManaging
 
   const rows: AssocRow[] = session.visibleAssociations.map((association) => {
-    const flags = assocFlags(association, session, ui.editor, phase, managing)
+    const flags = assocFlags(association, session, ui.editor, visibilityPhase, associationManaging)
     return {
       association,
       sortable: card ? isAssociationOnCard(card, association.id) : false,
@@ -228,8 +231,9 @@ export function SessionScreenLogic() {
   })
 
   const addText =
-    onFront && ui.editor?.intent === "add" && ui.editor.mode === "text" ? (
+    !ui.editingCase && ui.editor?.intent === "add" && ui.editor.mode === "text" ? (
       <AssocTextFormLayout
+        intent="add"
         saving={session.savingAssociation === "text"}
         onCancel={() => ui.setEditor(null)}
         onSave={(payload) =>
@@ -239,8 +243,9 @@ export function SessionScreenLogic() {
     ) : null
 
   const addUrl =
-    onFront && ui.editor?.intent === "add" && ui.editor.mode === "image_url" ? (
+    !ui.editingCase && ui.editor?.intent === "add" && ui.editor.mode === "image_url" ? (
       <AssocUrlFormLayout
+        intent="add"
         saving={session.savingAssociation === "image_url"}
         onCancel={() => ui.setEditor(null)}
         onSave={(url) => void ui.saveEditor(() => session.addImageAssociationFromUrl(url))}
@@ -259,16 +264,23 @@ export function SessionScreenLogic() {
         onOpenCaseLibrary={openLibrary}
         progress={`${passedCount} passed · ${totalCases} in deck`}
         {...headerCategoryProps}
-        onFront={onFront}
+        sessionPhase={sessionOnFront ? "front" : "back"}
+        recallIntent={session.recallIntent}
+        revealLemma={sessionOnFront ? undefined : card?.lemmaText}
+        studyRecord={card?.studyRecord ?? null}
+        onDontKnow={session.chooseDontKnow}
+        onKnow={session.chooseKnow}
+        onBackLeft={session.submitBackLeft}
+        onBackRight={session.submitBackRight}
+        onFront={cardRecallPresentation}
         editingCase={ui.editingCase}
         caseSaving={ui.caseSaving}
-        showAdd={onFront && ui.editor === null && !ui.editingCase}
+        showAdd={associationManaging && ui.editor === null}
         saving={ui.saving}
         lemma={ui.lemmaDraft}
         meaning={ui.meaningDraft}
         cardMeaning={card?.meaning ?? undefined}
-        revealLemma={card?.lemmaText}
-        showLemma={!onFront && card !== null && !ui.editingCase}
+        showLemma={false}
         rows={rows}
         addText={addText}
         addUrl={addUrl}
@@ -297,8 +309,6 @@ export function SessionScreenLogic() {
             />
           ) : null
         }
-        onReveal={session.revealAnswer}
-        onGrade={(grade) => void session.submitGrade(grade)}
         grading={session.gradingCase}
         overlays={
           <OverlaysLayout

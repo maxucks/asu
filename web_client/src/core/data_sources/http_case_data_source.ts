@@ -1,4 +1,5 @@
 import { asuApiBaseUrl, requestJson } from "@/core/utils/request_json"
+import type { AppSettingsDto, StudyModeDto, StudyRecordSnapshotDto } from "@/practice/practice_study_types"
 
 export const AssociationKinds = ["text", "image", "audio", "sketch", "video"] as const
 
@@ -20,6 +21,8 @@ export type AssociationDto = {
 }
 
 /** API `/api/practice` card response body. */
+export type { StudyModeDto, StudyRecordSnapshotDto }
+
 export type PracticeCardDto = {
   readonly id: string
   readonly languageName: string
@@ -27,6 +30,7 @@ export type PracticeCardDto = {
   readonly meaning: string | null
   readonly associations: readonly AssociationDto[]
   readonly categories: readonly CaseCategoryRefDto[]
+  readonly studyRecord?: StudyRecordSnapshotDto
 }
 
 export type CaseDto = PracticeCardDto
@@ -183,6 +187,30 @@ export class HttpCaseDataSource {
       `/api/practice/cases/${caseId}/associations/${associationId}/hidden`,
       { hiddenFromPractice },
     )
+  }
+
+  async submitPracticeOutcomeDto(caseId: string, outcome: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/practice/cases/${caseId}/outcome`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ outcome }),
+    })
+    if (!response.ok) {
+      let message = `Request failed (${response.status})`
+      try {
+        const payload = (await response.json()) as { message?: string }
+        if (typeof payload.message === "string" && payload.message.length > 0) {
+          message = payload.message
+        }
+      } catch {
+        // empty body
+      }
+      throw new Error(message)
+    }
+  }
+
+  async fetchAppSettings(): Promise<AppSettingsDto> {
+    return requestJson(this.baseUrl, "GET", `/api/practice/settings`)
   }
 
   async submitGradeDto(caseId: string, grade: string): Promise<void> {

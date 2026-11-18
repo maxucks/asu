@@ -7,7 +7,11 @@ import {
   DrizzleCategoryDataSource,
   type CategoryDto,
 } from "@/core/data_sources/category_data_source_drizzle"
-import { DrizzleStudyRecordDataSource } from "@/core/data_sources/study_record_data_source_drizzle"
+import {
+  DrizzleStudyRecordDataSource,
+  type StudyModeDto,
+} from "@/core/data_sources/study_record_data_source_drizzle"
+import { learningCycleMsFromEnv, readAppSettings } from "@/core/app_settings"
 import type {
   AssociationDto,
   CaseDto,
@@ -18,6 +22,10 @@ export type CaseCategoryRefDto = {
   readonly name: string
 }
 
+import type { StudyRecordSnapshotDto } from "@/practice/practice_srs"
+
+export type { StudyRecordSnapshotDto }
+
 export type PracticeCardDto = {
   readonly id: string
   readonly languageName: string
@@ -25,6 +33,7 @@ export type PracticeCardDto = {
   readonly meaning: string | null
   readonly associations: readonly AssociationDto[]
   readonly categories: readonly CaseCategoryRefDto[]
+  readonly studyRecord?: StudyRecordSnapshotDto
 }
 
 export type PracticeQueueDto = {
@@ -40,10 +49,18 @@ export const PracticeGrades = ["hard", "medium", "easy"] as const
 
 export type PracticeGradeDto = (typeof PracticeGrades)[number]
 
+export const PracticeOutcomes = ["dont_know", "compare_wrong", "compare_correct"] as const
+
+export type PracticeOutcomeDto = (typeof PracticeOutcomes)[number]
+
 import {
-  applyPracticeGrade,
+  applyPracticeOutcome,
+  canEnableFreeze,
   createInitialStudyRecord,
+  STUDY_MODES_IMPLEMENTED,
   pickNextPracticeCaseId,
+  practiceGradeToOutcome,
+  toStudyRecordSnapshot,
 } from "@/practice/practice_srs"
 import {
   practiceAssociationErrorFromThrown,
@@ -372,19 +389,27 @@ export class PracticeRepository {
       return null
     }
 
-    return PracticeRepository.caseDtoToPracticeCard(caseDto)
+    const record =
+      recordByCaseId.get(nextId) ?? createInitialStudyRecord(nextId)
+    return PracticeRepository.caseDtoToPracticeCard(caseDto, record)
+  }
+
+  private async studyRecordForCase(caseId: string) {
+    return (await this.studyRecordDataSource.getStudyRecordDtoByCaseId(caseId)) ?? createInitialStudyRecord(caseId)
   }
 
   async submitGrade(
     caseId: string,
     grade: PracticeGradeDto,
   ): Promise<Result<void, PracticeError>> {
+    return this.submitPracticeOutcome(caseId, practiceGradeToOutcome(grade))
+  }
+
+  async submitPracticeOutcome(caseId: string, outcome: PracticeOutcomeDto): Promise<Result<void, PracticeError>> {
     try {
       await this.caseDataSource.getCaseDtoById(caseId)
-      const existing =
-        (await this.studyRecordDataSource.getStudyRecordDtoByCaseId(caseId)) ??
-        createInitialStudyRecord(caseId)
-      const updated = applyPracticeGrade(existing, grade, new Date())
+      const existing = await this.studyRecordForCase(caseId)
+      const updated = applyPracticeOutcome(existing, outcome, new Date(), learningCycleMsFromEnv())
       await this.studyRecordDataSource.upsertStudyRecordDto(updated)
       return ok(undefined)
     } catch (thrown) {
@@ -393,6 +418,35 @@ export class PracticeRepository {
       }
       return err(practiceQueueErrorFromThrown(thrown))
     }
+  }
+
+  async setStudyMode(caseId: string, mode: StudyModeDto): Promise<Result<StudyRecordSnapshotDto, PracticeError>> {
+    try {
+      if (!STUDY_MODES_IMPLEMENTED) {
+        return err(practiceQueueErrorFromThrown(new Error("Study modes are not enabled")))
+      }
+      await this.caseDataSource.getCaseDtoById(caseId)
+      const existing = await this.studyRecordForCase(caseId)
+      if (mode === "freeze" && !canEnableFreeze(existing, new Date())) {
+        return err(practiceQueueErrorFromThrown(new Error("Freeze is on cooldown for this learning cycle")))
+      }
+
+      const next = {
+        ...existing,
+        studyMode: mode,
+      }
+      await this.studyRecordDataSource.upsertStudyRecordDto(next)
+      return ok(toStudyRecordSnapshot(next, new Date()))
+    } catch (thrown) {
+      if (thrown instanceof Error && thrown.message.startsWith("Record not found")) {
+        return err(practiceCardNotFoundError(thrown.message))
+      }
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
+  static readSettings() {
+    return readAppSettings()
   }
 
   async createCase(
@@ -436,7 +490,10 @@ export class PracticeRepository {
     }
   }
 
-  private static caseDtoToPracticeCard(caseDto: CaseDto): PracticeCardDto {
+  private static caseDtoToPracticeCard(
+    caseDto: CaseDto,
+    studyRecord?: import("@/core/data_sources/study_record_data_source_drizzle").StudyRecordDto,
+  ): PracticeCardDto {
     return {
       id: caseDto.id,
       languageName: caseDto.languageName,
@@ -444,6 +501,7 @@ export class PracticeRepository {
       meaning: caseDto.meaning,
       associations: caseDto.associations,
       categories: caseDto.categories,
+      studyRecord: studyRecord ? toStudyRecordSnapshot(studyRecord, new Date()) : undefined,
     }
   }
 

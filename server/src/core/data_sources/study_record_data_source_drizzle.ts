@@ -2,29 +2,42 @@ import { db } from "@/core/db"
 import { studyRecords } from "@/db/schema"
 import { eq, inArray } from "drizzle-orm"
 
-export const ReviewStatuses = ["new", "learning", "repeating"] as const
+export const StudyModes = ["normal", "struggle", "freeze", "berserk"] as const
 
-export type ReviewStatusDto = (typeof ReviewStatuses)[number]
+export type StudyModeDto = (typeof StudyModes)[number]
 
 export type StudyRecordDto = {
   readonly caseId: string
-  readonly reviewStatus: ReviewStatusDto
-  readonly dueAt: string | null
-  readonly schedulingStrengthNumeric: number
-  readonly repetitionsCount: number
-  readonly lastRepetitionAt: string | null
-  readonly lastGradeNumeric: number | null
+  readonly levelNumeric: number
+  readonly pointsNumeric: number
+  readonly studyMode: StudyModeDto
+  readonly lockedUntil: string | null
+  readonly modeUntil: string | null
+  readonly streakCount: number
 }
 
 function mapRow(row: typeof studyRecords.$inferSelect): StudyRecordDto {
+  const mode = row.studyMode as StudyModeDto
   return {
     caseId: row.caseId,
-    reviewStatus: row.reviewStatus as ReviewStatusDto,
-    dueAt: row.dueAt,
-    schedulingStrengthNumeric: row.schedulingStrengthNumeric,
-    repetitionsCount: row.repetitionsCount,
-    lastRepetitionAt: row.lastRepetitionAt,
-    lastGradeNumeric: row.lastGradeNumeric,
+    levelNumeric: row.levelNumeric,
+    pointsNumeric: row.pointsNumeric,
+    studyMode: StudyModes.includes(mode) ? mode : "normal",
+    lockedUntil: row.lockedUntil,
+    modeUntil: row.modeUntil,
+    streakCount: row.streakCount,
+  }
+}
+
+function rowValues(record: StudyRecordDto) {
+  return {
+    caseId: record.caseId,
+    levelNumeric: record.levelNumeric,
+    pointsNumeric: record.pointsNumeric,
+    studyMode: record.studyMode,
+    lockedUntil: record.lockedUntil,
+    modeUntil: record.modeUntil,
+    streakCount: record.streakCount,
   }
 }
 
@@ -43,40 +56,17 @@ export class DrizzleStudyRecordDataSource {
   }
 
   async insertStudyRecordDto(record: StudyRecordDto): Promise<void> {
-    await db.insert(studyRecords).values({
-      caseId: record.caseId,
-      reviewStatus: record.reviewStatus,
-      dueAt: record.dueAt,
-      schedulingStrengthNumeric: record.schedulingStrengthNumeric,
-      repetitionsCount: record.repetitionsCount,
-      lastRepetitionAt: record.lastRepetitionAt,
-      lastGradeNumeric: record.lastGradeNumeric,
-    })
+    await db.insert(studyRecords).values(rowValues(record))
   }
 
   async upsertStudyRecordDto(record: StudyRecordDto): Promise<void> {
+    const values = rowValues(record)
     await db
       .insert(studyRecords)
-      .values({
-        caseId: record.caseId,
-        reviewStatus: record.reviewStatus,
-        dueAt: record.dueAt,
-        schedulingStrengthNumeric: record.schedulingStrengthNumeric,
-        repetitionsCount: record.repetitionsCount,
-        lastRepetitionAt: record.lastRepetitionAt,
-        lastGradeNumeric: record.lastGradeNumeric,
-      })
+      .values(values)
       .onConflictDoUpdate({
         target: studyRecords.caseId,
-        set: {
-          reviewStatus: record.reviewStatus,
-          dueAt: record.dueAt,
-          schedulingStrengthNumeric: record.schedulingStrengthNumeric,
-          repetitionsCount: record.repetitionsCount,
-          lastRepetitionAt: record.lastRepetitionAt,
-          lastGradeNumeric: record.lastGradeNumeric,
-        },
+        set: values,
       })
   }
-
 }

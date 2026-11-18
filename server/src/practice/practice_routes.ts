@@ -8,6 +8,7 @@ import {
   practiceAssociationOrderBodySchema,
   practiceAssociationTextBodySchema,
   practiceGradeBodySchema,
+  practiceOutcomeBodySchema,
   practiceCaseAssociationParamsSchema,
   practiceCaseIdParamsSchema,
   practiceCreateCaseBodySchema,
@@ -21,7 +22,8 @@ import {
   practiceUpdateLanguageBodySchema,
   practiceUpdateCaseBodySchema,
 } from "@/practice/practice_route_schemas"
-import type { PracticeRepository } from "@/practice/practice_repository"
+import { PracticeRepository } from "@/practice/practice_repository"
+import { readAppSettings } from "@/core/app_settings"
 import { Hono } from "hono"
 
 export function createPracticeRoutes(repository: PracticeRepository) {
@@ -73,6 +75,25 @@ export function createPracticeRoutes(repository: PracticeRepository) {
     }
     return noContent(c)
   })
+
+  routes.post("/cases/:caseId/outcome", async (c) => {
+    const params = parseRouteParams(c.req.param(), practiceCaseIdParamsSchema)
+    if (!params.ok) {
+      return error(c, params.error, practiceErrorHttpStatus(params.error.code))
+    }
+    const body = await parseJsonBody(c, practiceOutcomeBodySchema)
+    if (!body.ok) {
+      return error(c, body.error, practiceErrorHttpStatus(body.error.code))
+    }
+
+    const result = await repository.submitPracticeOutcome(params.value.caseId, body.value.outcome)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return noContent(c)
+  })
+
+  routes.get("/settings", (c) => ok(c, readAppSettings()))
 
   routes.delete("/cases/:caseId", async (c) => {
     const params = parseRouteParams(c.req.param(), practiceCaseIdParamsSchema)

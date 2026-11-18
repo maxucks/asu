@@ -72,10 +72,10 @@ export const studyRecords = sqliteTable("study_records", {
   caseId: text("case_id")
     .primaryKey()
     .references(() => cases.id, { onDelete: "cascade" }),
-  reviewStatus: text("review_status").notNull(),
-  dueAt: text("due_at"),
-  schedulingStrengthNumeric: integer("scheduling_strength_numeric").notNull().default(0),
-  repetitionsCount: integer("repetitions_count").notNull().default(0),
-  lastRepetitionAt: text("last_repetition_at"),
-  lastGradeNumeric: integer("last_grade_numeric"),
+  levelNumeric: integer("level_numeric").notNull().default(0),
+  pointsNumeric: integer("points_numeric").notNull().default(0),
+  studyMode: text("study_mode").notNull().default("normal"),
+  lockedUntil: text("locked_until"),
+  modeUntil: text("mode_until"),
+  streakCount: integer("streak_count").notNull().default(0),
 })

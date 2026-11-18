@@ -1,7 +1,8 @@
 import { singleEmoji } from "@/core/single_emoji"
 import { DEFAULT_ASSOCIATION_TILE_COLOR_ID, isAssociationTileColorId } from "@/practice/association_tile_colors"
 import { PracticeErrorMessages } from "@/practice/practice_errors"
-import { PracticeGrades } from "@/practice/practice_repository"
+import { PracticeGrades, PracticeOutcomes } from "@/practice/practice_repository"
+import { StudyModes } from "@/core/data_sources/study_record_data_source_drizzle"
 import { z } from "zod"
 
 function parseAssociationText(raw: string): string | null {
@@ -75,6 +76,14 @@ export const practiceAssociationOrderBodySchema = z.object({
 
 export const practiceGradeBodySchema = z.object({
   grade: z.enum(PracticeGrades),
+})
+
+export const practiceOutcomeBodySchema = z.object({
+  outcome: z.enum(PracticeOutcomes),
+})
+
+export const practiceStudyModeBodySchema = z.object({
+  mode: z.enum(StudyModes),
 })
 
 const caseLemmaField = z

@@ -1,6 +1,6 @@
 import { CaseLibraryAddCaseControl } from "@/practice/components/case_library/case_library_add_case_control"
 import { CaseLibraryDetail } from "@/practice/components/case_library/case_library_detail"
-import { CaseLibraryTile } from "@/practice/components/case_library/case_library_tile"
+import { CaseLibraryCaseList } from "@/practice/components/case_library/case_library_case_list"
 import { IconButton, IconClose } from "@/practice/components/session/icon_button"
 import { parseCaseMeaning } from "@/practice/practice_model"
 import {
@@ -165,17 +165,7 @@ export function CaseLibraryDrawer({
                 </div>
               ) : null}
               {cards.length > 0 ? (
-                <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {cards.map((card) => (
-                    <li key={card.id}>
-                      <CaseLibraryTile
-                        card={card}
-                        selected={card.id === selectedId}
-                        onSelect={() => selectCase(card.id)}
-                      />
-                    </li>
-                  ))}
-                </ul>
+                <CaseLibraryCaseList cards={cards} selectedId={selectedId} onSelect={(id) => selectCase(id)} />
               ) : null}
             </div>
           </section>
