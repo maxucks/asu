@@ -1,6 +1,6 @@
 {
   "name": "@asu/server",
-  "version": "1.0.1",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,7 +14,6 @@
     "db:migrate": "bun run src/db/migrate.ts",
     "db:seed": "bun run src/db/seed.ts",
     "db:seed:japanese": "bun run src/db/seed_japanese_spatial.ts",
-    "db:seed:english": "bun run src/db/seed_english_vocab.ts",
     "db:setup": "bun run db:push && bun run db:seed"
   },
   "dependencies": {

@@ -1,14 +1,15 @@
-import type { StudyModeDto, StudyRecordDto } from "@/core/data_sources/study_record_data_source_drizzle"
 import type { PracticeGradeDto } from "@/practice/practice_repository"
+import type { StudyRecordDto } from "@/core/data_sources/study_record_data_source_drizzle"
 
-/** See docs/STUDY_SRS_MODES.md — DB columns kept; UI/API mode switching off until re-enabled. */
-export const STUDY_MODES_IMPLEMENTED = false
+const MS_MINUTE = 60_000
+const MS_HOUR = 60 * MS_MINUTE
+const MS_DAY = 24 * MS_HOUR
 
-export const PracticeOutcomes = ["dont_know", "compare_wrong", "compare_correct"] as const
-
-export type PracticeOutcomeDto = (typeof PracticeOutcomes)[number]
-
-const POINTS_PER_LEVEL = 100
+const LEARNING_DELAY_MS: Record<PracticeGradeDto, number> = {
+  hard: 10 * MS_MINUTE,
+  medium: MS_HOUR,
+  easy: 4 * MS_HOUR,
+}
 
 const GRADE_NUMERIC: Record<PracticeGradeDto, number> = {
   hard: 0,
@@ -20,193 +21,115 @@ export function practiceGradeToNumeric(grade: PracticeGradeDto): number {
   return GRADE_NUMERIC[grade]
 }
 
-export function practiceGradeToOutcome(grade: PracticeGradeDto): PracticeOutcomeDto {
-  if (grade === "hard") return "dont_know"
-  if (grade === "medium") return "compare_wrong"
-  return "compare_correct"
-}
-
 export function createInitialStudyRecord(caseId: string): StudyRecordDto {
   return {
     caseId,
-    levelNumeric: 0,
-    pointsNumeric: 0,
-    studyMode: "normal",
-    lockedUntil: null,
-    modeUntil: null,
-    streakCount: 0,
+    reviewStatus: "new",
+    dueAt: null,
+    schedulingStrengthNumeric: 0,
+    repetitionsCount: 0,
+    lastRepetitionAt: null,
+    lastGradeNumeric: null,
   }
 }
 
-export function isStudyRecordLocked(record: StudyRecordDto, now: Date): boolean {
-  if (!record.lockedUntil) return false
-  const until = Date.parse(record.lockedUntil)
-  return !Number.isNaN(until) && until > now.getTime()
-}
+export function applyPracticeGrade(record: StudyRecordDto, grade: PracticeGradeDto, now: Date): StudyRecordDto {
+  const gradeNumeric = practiceGradeToNumeric(grade)
+  const repetitionsCount = record.repetitionsCount + 1
+  let reviewStatus = record.reviewStatus
+  let schedulingStrengthNumeric = record.schedulingStrengthNumeric
 
-function isModeCooldownActive(modeUntil: string | null, now: Date): boolean {
-  if (!modeUntil) return false
-  const until = Date.parse(modeUntil)
-  return !Number.isNaN(until) && until > now.getTime()
-}
-
-function bumpStreak(streakCount: number, positive: boolean): number {
-  if (positive) {
-    return streakCount >= 0 ? streakCount + 1 : 1
-  }
-  return streakCount <= 0 ? streakCount - 1 : -1
-}
-
-function clampPoints(level: number, points: number): { level: number; points: number } {
-  let nextLevel = level
-  let nextPoints = points
-
-  while (nextPoints >= POINTS_PER_LEVEL) {
-    nextPoints -= POINTS_PER_LEVEL
-    nextLevel += 1
+  if (reviewStatus === "new") {
+    reviewStatus = "learning"
   }
 
-  while (nextPoints < 0) {
-    nextPoints += POINTS_PER_LEVEL
-    nextLevel -= 1
+  if (reviewStatus === "learning") {
+    if (grade === "easy") {
+      reviewStatus = "repeating"
+      schedulingStrengthNumeric = Math.max(1, schedulingStrengthNumeric + 1)
+    } else if (grade === "medium" && repetitionsCount >= 2) {
+      reviewStatus = "repeating"
+      schedulingStrengthNumeric = Math.max(1, schedulingStrengthNumeric + 1)
+    }
+  } else if (reviewStatus === "repeating") {
+    if (grade === "hard") {
+      reviewStatus = "learning"
+      schedulingStrengthNumeric = Math.max(0, schedulingStrengthNumeric - 1)
+    } else if (grade === "easy") {
+      schedulingStrengthNumeric += 1
+    } else if (grade === "medium") {
+      schedulingStrengthNumeric = Math.max(0, schedulingStrengthNumeric)
+    }
   }
 
-  return { level: nextLevel, points: nextPoints }
-}
-
-function berserkMultiplier(streakCount: number): number {
-  const magnitude = Math.min(Math.abs(streakCount), 6)
-  if (magnitude === 0) return 1
-  return 1 + magnitude * 0.35
-}
-
-function applyPointDelta(
-  record: StudyRecordDto,
-  delta: number,
-): Pick<StudyRecordDto, "levelNumeric" | "pointsNumeric"> {
-  const adjusted = clampPoints(record.levelNumeric, record.pointsNumeric + delta)
-  return { levelNumeric: adjusted.level, pointsNumeric: adjusted.points }
-}
-
-export type StudyRecordSnapshotDto = {
-  readonly level: number
-  readonly points: number
-  readonly studyMode: StudyModeDto
-  readonly lockedUntil: string | null
-  readonly modeUntil: string | null
-  readonly struggleSuggested: boolean
-  readonly freezeAvailable: boolean
-  readonly streakCount: number
-  readonly locked: boolean
-}
-
-export function toStudyRecordSnapshot(record: StudyRecordDto, now: Date): StudyRecordSnapshotDto {
-  const freezeCooldown = isModeCooldownActive(record.modeUntil, now)
-  return {
-    level: record.levelNumeric,
-    points: record.pointsNumeric,
-    studyMode: STUDY_MODES_IMPLEMENTED ? record.studyMode : "normal",
-    lockedUntil: record.lockedUntil,
-    modeUntil: record.modeUntil,
-    struggleSuggested:
-      STUDY_MODES_IMPLEMENTED && record.streakCount <= -3 && record.studyMode === "normal",
-    freezeAvailable:
-      STUDY_MODES_IMPLEMENTED && !freezeCooldown && record.studyMode !== "freeze",
-    streakCount: record.streakCount,
-    locked: isStudyRecordLocked(record, now),
-  }
-}
-
-export function canEnableFreeze(record: StudyRecordDto, now: Date): boolean {
-  if (!STUDY_MODES_IMPLEMENTED) return false
-  return toStudyRecordSnapshot(record, now).freezeAvailable
-}
-
-export function applyPracticeOutcome(
-  record: StudyRecordDto,
-  outcome: PracticeOutcomeDto,
-  now: Date,
-  learningCycleMs: number,
-): StudyRecordDto {
-  const activeMode: StudyModeDto = STUDY_MODES_IMPLEMENTED ? record.studyMode : "normal"
-  const freezeActive = STUDY_MODES_IMPLEMENTED && activeMode === "freeze"
-
-  const positive = outcome === "compare_correct"
-  const negative = outcome === "dont_know" || outcome === "compare_wrong"
-
-  let pointDelta = 0
-  if (outcome === "dont_know") pointDelta = -18
-  else if (outcome === "compare_wrong") pointDelta = -22
-  else pointDelta = 28
-
-  let studyMode: StudyModeDto = activeMode
-  if (STUDY_MODES_IMPLEMENTED && positive && studyMode === "struggle") studyMode = "normal"
-
-  let streakCount = record.streakCount
-  if (positive) streakCount = bumpStreak(streakCount, true)
-  else if (negative) streakCount = bumpStreak(streakCount, false)
-
-  if (STUDY_MODES_IMPLEMENTED && studyMode === "struggle") {
-    pointDelta = pointDelta > 0 ? Math.round(pointDelta * 2.5) : Math.round(pointDelta * 0.65)
-  }
-
-  if (STUDY_MODES_IMPLEMENTED && studyMode === "berserk") {
-    pointDelta = Math.round(pointDelta * berserkMultiplier(streakCount))
-  }
-
-  let levelNumeric = record.levelNumeric
-  let pointsNumeric = record.pointsNumeric
-
-  if (!freezeActive) {
-    const applied = applyPointDelta(record, pointDelta)
-    levelNumeric = applied.levelNumeric
-    pointsNumeric = applied.pointsNumeric
-  }
-
-  const lockedUntil = new Date(now.getTime() + learningCycleMs).toISOString()
-  let modeUntil: string | null = record.modeUntil
-
-  if (STUDY_MODES_IMPLEMENTED && freezeActive) {
-    modeUntil = lockedUntil
-    studyMode = "normal"
-  } else if (!STUDY_MODES_IMPLEMENTED) {
-    studyMode = record.studyMode
-    modeUntil = record.modeUntil
-  }
+  const dueAt = computeDueAt(reviewStatus, grade, schedulingStrengthNumeric, now)
 
   return {
     ...record,
-    levelNumeric,
-    pointsNumeric,
-    studyMode,
-    streakCount,
-    lockedUntil,
-    modeUntil,
+    reviewStatus,
+    schedulingStrengthNumeric,
+    repetitionsCount,
+    lastRepetitionAt: now.toISOString(),
+    lastGradeNumeric: gradeNumeric,
+    dueAt,
   }
 }
 
-/** @deprecated use applyPracticeOutcome */
-export function applyPracticeGrade(record: StudyRecordDto, grade: PracticeGradeDto, now: Date): StudyRecordDto {
-  return applyPracticeOutcome(record, practiceGradeToOutcome(grade), now, 240 * 60_000)
+function computeDueAt(
+  reviewStatus: StudyRecordDto["reviewStatus"],
+  grade: PracticeGradeDto,
+  strength: number,
+  now: Date,
+): string {
+  if (reviewStatus === "learning") {
+    return new Date(now.getTime() + LEARNING_DELAY_MS[grade]).toISOString()
+  }
+
+  const capped = Math.min(Math.max(strength, 1), 12)
+  const baseDays = Math.pow(2, capped - 1)
+  const factor = grade === "easy" ? 1.5 : grade === "medium" ? 1 : 0.6
+  const days = Math.max(1, Math.round(baseDays * factor))
+  return new Date(now.getTime() + days * MS_DAY).toISOString()
 }
 
+/** Weighted rank: higher = more likely in infinite practice (new boosted, due + time since last rep). */
 export function computePracticeCaseWeight(record: StudyRecordDto | undefined, now: Date): number {
-  if (!record) {
-    return (90 + Math.random() * 35) * (0.85 + Math.random() * 0.3)
+  if (!record || record.reviewStatus === "new") {
+    return (105 + Math.random() * 30) * (0.85 + Math.random() * 0.3)
   }
 
-  if (isStudyRecordLocked(record, now)) {
-    return 0
+  const nowMs = now.getTime()
+  const dueMs = record.dueAt ? Date.parse(record.dueAt) : null
+  const lastMs = record.lastRepetitionAt ? Date.parse(record.lastRepetitionAt) : null
+
+  let weight = 0
+
+  if (record.reviewStatus === "learning") {
+    weight = 58
+    if (dueMs !== null && !Number.isNaN(dueMs) && dueMs <= nowMs) {
+      weight += 48
+    }
+  } else if (record.reviewStatus === "repeating") {
+    weight = 16
+    if (dueMs !== null && !Number.isNaN(dueMs) && dueMs <= nowMs) {
+      const overdueHours = Math.max(0, (nowMs - dueMs) / MS_HOUR)
+      weight += 30 + Math.min(45, overdueHours * 2)
+    }
   }
 
-  const level = record.levelNumeric
-  let weight = 42 + Math.max(0, 8 - level) * 9 + Math.max(0, -level) * 14
-
-  if (STUDY_MODES_IMPLEMENTED && record.studyMode === "struggle") {
-    weight *= 1.85
+  if (lastMs !== null && !Number.isNaN(lastMs)) {
+    const minutesSince = Math.max(0, (nowMs - lastMs) / MS_MINUTE)
+    weight += Math.min(38, minutesSince / 2.5)
+  } else {
+    weight += 28
   }
 
-  weight *= 0.75 + Math.random() * 0.5
+  if (record.repetitionsCount <= 1) {
+    weight += 18
+  }
+
+  weight *= 0.7 + Math.random() * 0.55
+
   return Math.max(1, weight)
 }
 
@@ -221,13 +144,7 @@ export function pickNextPracticeCaseId(
   }
 
   const candidates = excludeCaseId ? caseIds.filter((id) => id !== excludeCaseId) : [...caseIds]
-
-  const unlocked = candidates.filter((id) => {
-    const record = recordByCaseId.get(id)
-    return !record || !isStudyRecordLocked(record, now)
-  })
-
-  const pool = unlocked.length > 0 ? unlocked : [...caseIds]
+  const pool = candidates.length > 0 ? candidates : [...caseIds]
 
   const weighted = pool.map((id) => ({
     id,
@@ -245,6 +162,59 @@ export function pickNextPracticeCaseId(
   }
 
   return weighted[weighted.length - 1]!.id
+}
+
+type QueueBucket = {
+  readonly id: string
+  readonly dueMs: number | null
+}
+
+export function buildPracticeQueueCaseIds(
+  caseIds: readonly string[],
+  recordByCaseId: ReadonlyMap<string, StudyRecordDto>,
+  now: Date,
+  shuffleNew: (ids: readonly string[]) => string[],
+): string[] {
+  const nowMs = now.getTime()
+  const due: QueueBucket[] = []
+  const learning: QueueBucket[] = []
+  const fresh: string[] = []
+
+  for (const caseId of caseIds) {
+    const record = recordByCaseId.get(caseId)
+    if (!record || record.reviewStatus === "new") {
+      fresh.push(caseId)
+      continue
+    }
+
+    const dueMs = record.dueAt ? Date.parse(record.dueAt) : null
+
+    if (record.reviewStatus === "repeating") {
+      if (dueMs !== null && !Number.isNaN(dueMs) && dueMs <= nowMs) {
+        due.push({ id: caseId, dueMs })
+      }
+      continue
+    }
+
+    if (record.reviewStatus === "learning") {
+      if (dueMs !== null && !Number.isNaN(dueMs) && dueMs <= nowMs) {
+        due.push({ id: caseId, dueMs })
+      } else {
+        learning.push({ id: caseId, dueMs })
+      }
+    }
+  }
+
+  due.sort((left, right) => (left.dueMs ?? 0) - (right.dueMs ?? 0))
+
+  learning.sort((left, right) => {
+    if (left.dueMs === null && right.dueMs === null) return 0
+    if (left.dueMs === null) return 1
+    if (right.dueMs === null) return -1
+    return left.dueMs - right.dueMs
+  })
+
+  return [...due.map((item) => item.id), ...learning.map((item) => item.id), ...shuffleNew(fresh)]
 }
 
 export function shuffleCaseIds<T extends string>(items: readonly T[]): T[] {

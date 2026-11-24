@@ -2,9 +2,6 @@ import type { AssocRow } from "@/practice/components/assoc/list_layout"
 import { AssocListLayout } from "@/practice/components/assoc/list_layout"
 import { CaseFieldsLayout } from "@/practice/components/case/fields_layout"
 import { ToolbarLayout } from "@/practice/components/session/toolbar_layout"
-import { StudyPetBadge } from "@/practice/components/session/study_pet_badge"
-import { levelGlowShadow } from "@/practice/practice_level_visual"
-import type { StudyRecordSnapshotDto } from "@/practice/practice_study_types"
 import type { AssociationAddAction } from "@/practice/practice_utils"
 import type { ReactNode } from "react"
 
@@ -33,24 +30,14 @@ export type CardLayoutProps = {
   readonly sortable?: boolean
   readonly onReorder?: (associationIds: readonly string[]) => void
   readonly caseCategories?: ReactNode
-  readonly studyRecord?: StudyRecordSnapshotDto | null
 }
 
 export function CardLayout(props: CardLayoutProps) {
-  const level = props.studyRecord?.level ?? 0
-  const glow = levelGlowShadow(level)
-
   return (
     <section
-      className={`flex h-full min-h-[min(70vh,560px)] flex-col overflow-hidden rounded-2xl border border-grid-line bg-card transition-shadow duration-300 ${props.flat ? "" : "shadow-lg"}`}
-      style={{ boxShadow: glow }}
+      className={`flex flex-1 flex-col overflow-hidden rounded-2xl border border-grid-line bg-card ${props.flat ? "" : "shadow-lg"}`}
     >
       <div className="space-y-3 border-b border-grid-line px-5 py-5">
-        <div className="flex items-start gap-3">
-          {props.studyRecord ? (
-            <StudyPetBadge level={props.studyRecord.level} points={props.studyRecord.points} />
-          ) : null}
-          <div className="min-w-0 flex-1">
         <ToolbarLayout
           onFront={props.onFront}
           editingCase={props.editingCase}
@@ -60,8 +47,6 @@ export function CardLayout(props: CardLayoutProps) {
           onEditCase={props.onEditCase}
           onDeleteCase={props.onDeleteCase}
         />
-          </div>
-        </div>
         {props.editingCase ? (
           <CaseFieldsLayout
             lemma={props.lemma}

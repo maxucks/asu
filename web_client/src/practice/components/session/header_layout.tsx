@@ -24,8 +24,8 @@ export function HeaderLayout({
   onOpenCaseLibrary,
 }: HeaderLayoutProps) {
   return (
-    <header className="flex w-full items-center justify-between gap-2 text-sm sm:gap-3">
-      <div className="flex min-w-0 flex-1 items-center gap-2">
+    <header className="flex items-center justify-between gap-3 text-sm">
+      <div className="flex min-w-0 max-w-[70%] items-center gap-2">
         <button
           type="button"
           onClick={onOpenLanguages}

@@ -4,7 +4,6 @@ import { cases, languages, studyRecords } from "@/db/schema"
 import { log } from "@/core/logger"
 import { parseJapaneseCaseLines } from "@/db/seed_data/parse_japanese_case_line"
 import { JAPANESE_SPATIAL_CASE_LINES } from "@/db/seed_data/japanese_spatial_cases"
-import { createInitialStudyRecord } from "@/practice/practice_srs"
 
 export const JAPANESE_LANGUAGE_ID = "lang-japanese"
 
@@ -54,15 +53,14 @@ async function seedJapaneseSpatial() {
       meaning,
     })
 
-    const study = createInitialStudyRecord(id)
     await db.insert(studyRecords).values({
-      caseId: study.caseId,
-      levelNumeric: study.levelNumeric,
-      pointsNumeric: study.pointsNumeric,
-      studyMode: study.studyMode,
-      lockedUntil: study.lockedUntil,
-      modeUntil: study.modeUntil,
-      streakCount: study.streakCount,
+      caseId: id,
+      reviewStatus: "new",
+      dueAt: null,
+      schedulingStrengthNumeric: 0,
+      repetitionsCount: 0,
+      lastRepetitionAt: null,
+      lastGradeNumeric: null,
     })
 
     inserted++

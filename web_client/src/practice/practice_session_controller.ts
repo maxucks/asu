@@ -13,7 +13,8 @@ import {
   type PracticeError,
 } from "@/practice/practice_errors"
 import { PracticeCard } from "@/practice/practice_model"
-import type { PracticeCardDto, PracticeOutcomeDto } from "@/practice/practice_repository"
+import type { PracticeGradeDto, PracticeCardDto } from "@/practice/practice_repository"
+import { PracticeGrades } from "@/practice/practice_repository"
 import { parseCaseLemma, parseCaseMeaning } from "@/practice/practice_model"
 import type { PracticeRepository } from "@/practice/practice_repository"
 import {
@@ -34,10 +35,13 @@ import {
   mergeVisibleAssociations,
   selectCurrentCard,
   selectCurrentCaseId,
+  selectFrontCaseId,
   type PracticeSessionViewState,
 } from "@/practice/practice_session_view_state"
 
-export type PracticeRecallIntent = "dont_know" | "know" | null
+function isPracticeGrade(value: string): value is PracticeGradeDto {
+  return (PracticeGrades as readonly string[]).includes(value)
+}
 
 export function usePracticeSessionController(
   practiceRepository: PracticeRepository,
@@ -52,7 +56,6 @@ export function usePracticeSessionController(
   const [reorderingAssociations, setReorderingAssociations] = useState(false)
   const [gradingCase, setGradingCase] = useState(false)
   const [categoriesBusy, setCategoriesBusy] = useState(false)
-  const [recallIntent, setRecallIntent] = useState<PracticeRecallIntent>(null)
   const stateRef = useRef(state)
   stateRef.current = state
 
@@ -80,7 +83,6 @@ export function usePracticeSessionController(
       cardIndex = cards.length - 1
     }
 
-    setRecallIntent(null)
     setState(
       createPracticeSessionViewStateReady(cards, cardIndex, "front", [], [], 0, sessionResult.value.totalCases),
     )
@@ -112,7 +114,7 @@ export function usePracticeSessionController(
 
   const runOnCurrentCard = useCallback(
     async (save: (caseId: string) => Promise<Result<PracticeCardDto, PracticeError>>): Promise<boolean> => {
-      const caseId = selectCurrentCaseId(stateRef.current)
+      const caseId = selectFrontCaseId(stateRef.current)
       if (!caseId) return false
 
       const result = await save(caseId)
@@ -151,24 +153,24 @@ export function usePracticeSessionController(
     })
   }, [])
 
-  const advanceAfterOutcome = useCallback(
-    async (outcome: PracticeOutcomeDto) => {
+  const submitGrade = useCallback(
+    async (grade: PracticeGradeDto) => {
+      if (!isPracticeGrade(grade)) return
+
       const ready = stateRef.current
-      if (!isPracticeSessionReadyViewState(ready)) return
+      if (!isPracticeSessionReadyViewState(ready) || ready.phase !== "back") return
 
       const caseId = selectCurrentCaseId(ready)
       if (!caseId) return
 
       setGradingCase(true)
-      const result = await practiceRepository.submitPracticeOutcome(caseId, outcome)
+      const result = await practiceRepository.submitGrade(caseId, grade)
       setGradingCase(false)
 
       if (!result.ok) {
         setState(createPracticeSessionViewStateError(result.error))
         return
       }
-
-      setRecallIntent(null)
 
       const next = await practiceRepository.pickNextPracticeCard(languageId, caseId, categoryId)
       if (!next.ok) {
@@ -177,7 +179,7 @@ export function usePracticeSessionController(
       }
 
       setState((prev) => {
-        if (!isPracticeSessionReadyViewState(prev)) return prev
+        if (!isPracticeSessionReadyViewState(prev) || prev.phase !== "back") return prev
 
         const nextCard = PracticeCard.fromDto(next.value.card)
         let cards = prev.cards
@@ -189,31 +191,15 @@ export function usePracticeSessionController(
           cards = cards.map((card, index) => (index === cardIndex ? nextCard : card))
         }
 
-        return createPracticeSessionViewStateAfterGrade({ ...prev, cards }, cardIndex, next.value.totalCases)
+        return createPracticeSessionViewStateAfterGrade(
+          { ...prev, cards },
+          cardIndex,
+          next.value.totalCases,
+        )
       })
     },
     [categoryId, languageId, practiceRepository],
   )
-
-  const chooseDontKnow = useCallback(() => {
-    if (!isPracticeSessionReadyViewState(stateRef.current) || stateRef.current.phase !== "front") return
-    setRecallIntent("dont_know")
-    revealAnswer()
-  }, [revealAnswer])
-
-  const chooseKnow = useCallback(() => {
-    if (!isPracticeSessionReadyViewState(stateRef.current) || stateRef.current.phase !== "front") return
-    setRecallIntent("know")
-    revealAnswer()
-  }, [revealAnswer])
-
-  const submitBackLeft = useCallback(() => {
-    void advanceAfterOutcome(recallIntent === "dont_know" ? "dont_know" : "compare_wrong")
-  }, [advanceAfterOutcome, recallIntent])
-
-  const submitBackRight = useCallback(() => {
-    void advanceAfterOutcome("compare_correct")
-  }, [advanceAfterOutcome])
 
   const setCaseCategories = useCallback(
     async (caseId: string, categoryIds: readonly string[]) => {
@@ -479,11 +465,7 @@ export function usePracticeSessionController(
     visibleAssociations,
     revealedHiddenAssociationIds,
     revealAnswer,
-    recallIntent,
-    chooseDontKnow,
-    chooseKnow,
-    submitBackLeft,
-    submitBackRight,
+    submitGrade,
     addSessionAssociation,
     addTextAssociation,
     addImageAssociationFromUrl,

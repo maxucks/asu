@@ -56,7 +56,11 @@ export function useSessionUi(session: Session) {
     const mode = associationComposeModeForEdit(association)
     if (!mode) return
 
-    if (association.hiddenFromPractice && !session.revealedHiddenAssociationIds.includes(association.id)) {
+    if (
+      association.hiddenFromPractice &&
+      session.sessionPhase === "front" &&
+      !session.revealedHiddenAssociationIds.includes(association.id)
+    ) {
       session.toggleRevealHiddenAssociation(association.id)
     }
 

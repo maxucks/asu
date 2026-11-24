@@ -34,11 +34,6 @@ export const PracticeGrades = ["hard", "medium", "easy"] as const;
 
 export type PracticeGradeDto = (typeof PracticeGrades)[number];
 
-export type { PracticeOutcomeDto, StudyModeDto, StudyRecordSnapshotDto, AppSettingsDto } from "@/practice/practice_study_types";
-export { PracticeOutcomes } from "@/practice/practice_study_types";
-
-import type { AppSettingsDto, PracticeOutcomeDto } from "@/practice/practice_study_types";
-
 export class PracticeRepository {
   constructor(
     private readonly caseDataSource: HttpCaseDataSource,
@@ -241,23 +236,6 @@ export class PracticeRepository {
     try {
       await this.caseDataSource.submitGradeDto(caseId, grade);
       return ok(undefined);
-    } catch (thrown) {
-      return err(practiceQueueErrorFromThrown(thrown));
-    }
-  }
-
-  async submitPracticeOutcome(caseId: string, outcome: PracticeOutcomeDto): Promise<Result<void, PracticeError>> {
-    try {
-      await this.caseDataSource.submitPracticeOutcomeDto(caseId, outcome);
-      return ok(undefined);
-    } catch (thrown) {
-      return err(practiceQueueErrorFromThrown(thrown));
-    }
-  }
-
-  async fetchAppSettings(): Promise<Result<AppSettingsDto, PracticeError>> {
-    try {
-      return ok(await this.caseDataSource.fetchAppSettings());
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown));
     }

@@ -1,6 +1,5 @@
 import type { AssociationDto, AssociationKind, CaseCategoryRefDto } from "@/core/data_sources/http_case_data_source"
 import type { PracticeCardDto } from "@/practice/practice_repository"
-import type { StudyRecordSnapshotDto } from "@/practice/practice_study_types"
 
 /** Instance shape for UI, selectors, and type-only imports. */
 export type PracticeAssociation = {
@@ -83,20 +82,7 @@ export class PracticeCard {
     readonly meaning: string | null,
     readonly associations: readonly Association[],
     readonly categories: readonly CaseCategoryRefDto[],
-    readonly studyRecord: StudyRecordSnapshotDto | null = null,
   ) {}
-
-  withStudyRecord(studyRecord: StudyRecordSnapshotDto | null): PracticeCard {
-    return new PracticeCard(
-      this.id,
-      this.languageName,
-      this.lemmaText,
-      this.meaning,
-      this.associations,
-      this.categories,
-      studyRecord,
-    )
-  }
 
   static fromDto(dto: PracticeCardDto): PracticeCard {
     return new PracticeCard(
@@ -106,7 +92,6 @@ export class PracticeCard {
       dto.meaning,
       dto.associations.map((item) => Association.fromDto(item)),
       dto.categories ?? [],
-      dto.studyRecord ?? null,
     )
   }
 }
