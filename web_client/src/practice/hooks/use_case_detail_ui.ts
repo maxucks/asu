@@ -1,6 +1,12 @@
+import type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source"
 import type { PracticeAssociation } from "@/practice/practice_model"
 import { isAssociationOnCard } from "@/practice/practice_session_view_state"
 import type { CaseDetailController } from "@/practice/hooks/use_case_detail_controller"
+import {
+  emptyRepresentationDrafts,
+  representationDraftsFromCard,
+  representationWritesFromDrafts,
+} from "@/practice/practice_representation"
 import {
   type AssociationAddAction,
   type AssociationEditorState,
@@ -9,7 +15,10 @@ import {
 } from "@/practice/practice_utils"
 import { useEffect, useState } from "react"
 
-export function useCaseDetailUi(detail: CaseDetailController) {
+export function useCaseDetailUi(
+  detail: CaseDetailController,
+  representationTypes: readonly RepresentationTypeDto[],
+) {
   const [editor, setEditor] = useState<AssociationEditorState | null>(null)
   const [pendingAssocDelete, setPendingAssocDelete] = useState<{ readonly id: string; readonly label: string } | null>(
     null,
@@ -18,16 +27,28 @@ export function useCaseDetailUi(detail: CaseDetailController) {
   const [editingCase, setEditingCase] = useState(false)
   const [valueDraft, setValueDraft] = useState("")
   const [meaningDraft, setMeaningDraft] = useState("")
+  const [representationDrafts, setRepresentationDrafts] = useState<Record<number, string>>(() =>
+    emptyRepresentationDrafts(representationTypes),
+  )
 
   const saving = detail.savingAssociation !== null || detail.reorderingAssociations
   const adding = editor?.intent === "add" && (editor.mode === "text" || editor.mode === "image_url")
   const caseSaving = detail.caseBusy === "update"
 
   useEffect(() => {
+    setRepresentationDrafts(emptyRepresentationDrafts(representationTypes))
+  }, [representationTypes])
+
+  useEffect(() => {
     if (editingCase) return
     setValueDraft(detail.card.value)
     setMeaningDraft(detail.card.meaning ?? "")
-  }, [detail.card, editingCase])
+    setRepresentationDrafts(representationDraftsFromCard(representationTypes, detail.card.representations))
+  }, [detail.card, editingCase, representationTypes])
+
+  function setRepresentationDraft(typeId: number, text: string) {
+    setRepresentationDrafts((prev) => ({ ...prev, [typeId]: text }))
+  }
 
   function pickAssoc(action: AssociationAddAction) {
     switch (action.action) {
@@ -74,12 +95,14 @@ export function useCaseDetailUi(detail: CaseDetailController) {
   function startCaseEdit() {
     setValueDraft(detail.card.value)
     setMeaningDraft(detail.card.meaning ?? "")
+    setRepresentationDrafts(representationDraftsFromCard(representationTypes, detail.card.representations))
     setEditingCase(true)
     setEditor(null)
   }
 
   async function saveCaseEdit() {
-    if (await detail.updateCase(valueDraft, meaningDraft)) setEditingCase(false)
+    const representations = representationWritesFromDrafts(representationTypes, representationDrafts)
+    if (await detail.updateCase(valueDraft, meaningDraft, representations)) setEditingCase(false)
   }
 
   async function confirmCaseDelete() {
@@ -102,6 +125,8 @@ export function useCaseDetailUi(detail: CaseDetailController) {
     setValueDraft,
     meaningDraft,
     setMeaningDraft,
+    representationDrafts,
+    setRepresentationDraft,
     saving,
     adding,
     caseSaving,

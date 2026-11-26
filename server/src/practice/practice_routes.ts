@@ -30,7 +30,12 @@ export function createPracticeRoutes(repository: PracticeRepository) {
       return error(c, body.error, practiceErrorHttpStatus(body.error.code))
     }
 
-    const result = await repository.createCase(body.value.languageId, body.value.value, body.value.meaning)
+    const result = await repository.createCase(
+      body.value.languageId,
+      body.value.value,
+      body.value.meaning,
+      body.value.representations,
+    )
     if (!result.ok) {
       return error(c, result.error, practiceErrorHttpStatus(result.error.code))
     }
@@ -90,6 +95,18 @@ export function createPracticeRoutes(repository: PracticeRepository) {
       return error(c, result.error, practiceErrorHttpStatus(result.error.code))
     }
     return ok(c, { languages: result.value })
+  })
+
+  routes.get("/representation-types", async (c) => {
+    const query = parseQuery(c.req.query(), practiceQueueQuerySchema)
+    if (!query.ok) {
+      return error(c, query.error, practiceErrorHttpStatus(query.error.code))
+    }
+    const result = await repository.listRepresentationTypes(query.value.languageId)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return ok(c, { representationTypes: result.value })
   })
 
   routes.get("/cases", async (c) => {

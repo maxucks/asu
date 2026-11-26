@@ -4,6 +4,8 @@ import { AnchoredPopupPanel } from "@/practice/components/category/anchored_popu
 import { PrimaryActionButton } from "@/practice/components/session/primary_action_button"
 import { IconPlus } from "@/practice/components/session/icon_button"
 import { parseCaseValue } from "@/practice/practice_model"
+import { emptyRepresentationDrafts, formatRepresentationTypeLabel } from "@/practice/practice_representation"
+import type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source"
 import { useEffect, useRef, useState } from "react"
 
 const ADD_CASE_HINT = "Save a new word to this language's vocabulary."
@@ -14,15 +16,28 @@ const MEANING_HINT =
 const FIELD_WIDTH_CLASS = "w-64"
 
 type CaseLibraryAddCaseControlProps = {
+  readonly representationTypes: readonly RepresentationTypeDto[]
   readonly saving?: boolean
-  readonly onCreate: (value: string, meaning: string) => boolean | Promise<boolean>
+  readonly onCreate: (
+    value: string,
+    meaning: string,
+    representationDrafts: Record<number, string>,
+  ) => boolean | Promise<boolean>
   readonly className?: string
 }
 
-export function CaseLibraryAddCaseControl({ saving, onCreate, className }: CaseLibraryAddCaseControlProps) {
+export function CaseLibraryAddCaseControl({
+  representationTypes,
+  saving,
+  onCreate,
+  className,
+}: CaseLibraryAddCaseControlProps) {
   const [editing, setEditing] = useState(false)
   const [caseValue, setCaseValue] = useState("")
   const [meaning, setMeaning] = useState("")
+  const [representationDrafts, setRepresentationDrafts] = useState<Record<number, string>>(() =>
+    emptyRepresentationDrafts(representationTypes),
+  )
   const rootRef = useRef<HTMLDivElement>(null)
   const anchorRef = useRef<HTMLDivElement>(null)
   const valueRef = useRef<HTMLInputElement>(null)
@@ -34,6 +49,10 @@ export function CaseLibraryAddCaseControl({ saving, onCreate, className }: CaseL
   const canSubmit = valueTrim.length > 0 && meaningTrim.length > 0 && !saving
 
   const fieldClassName = `h-9 w-full rounded-lg border border-grid-line bg-tile px-3 text-sm text-foreground placeholder:text-muted shadow-lg focus:border-accent/40 focus:outline-none disabled:opacity-50`
+
+  useEffect(() => {
+    setRepresentationDrafts(emptyRepresentationDrafts(representationTypes))
+  }, [representationTypes])
 
   useEffect(() => {
     if (!editing) return
@@ -54,10 +73,11 @@ export function CaseLibraryAddCaseControl({ saving, onCreate, className }: CaseL
       setEditing(false)
       setCaseValue("")
       setMeaning("")
+      setRepresentationDrafts(emptyRepresentationDrafts(representationTypes))
     }
     document.addEventListener("mousedown", onPointerDown)
     return () => document.removeEventListener("mousedown", onPointerDown)
-  }, [editing])
+  }, [editing, representationTypes])
 
   function startEditing() {
     if (saving) return
@@ -68,13 +88,14 @@ export function CaseLibraryAddCaseControl({ saving, onCreate, className }: CaseL
     setEditing(false)
     setCaseValue("")
     setMeaning("")
+    setRepresentationDrafts(emptyRepresentationDrafts(representationTypes))
   }
 
   async function submit() {
     if (!canSubmit) return
     const value = parseCaseValue(caseValue)
     if (value === null) return
-    const ok = await onCreate(value, meaningTrim)
+    const ok = await onCreate(value, meaningTrim, representationDrafts)
     if (ok) closeEditing()
   }
 
@@ -134,28 +155,44 @@ export function CaseLibraryAddCaseControl({ saving, onCreate, className }: CaseL
         dataAttribute="data-case-add-panel"
         widthClassName={FIELD_WIDTH_CLASS}
       >
-        <input
-          ref={meaningRef}
-          type="text"
-          value={meaning}
-          disabled={saving}
-          placeholder="Memory cue (no spoilers)…"
-          title={MEANING_HINT}
-          onChange={(e) => setMeaning(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") closeEditing()
-            if (e.key === "Enter") {
-              e.preventDefault()
-              void submit()
-            }
-          }}
-          className={fieldClassName}
-        />
-        {canSubmit ? (
-          <PrimaryActionButton type="button" size="compact" className="shadow-lg" onClick={() => void submit()}>
-            Add case
-          </PrimaryActionButton>
-        ) : null}
+        <div className="flex flex-col gap-2">
+          {representationTypes.map((type) => (
+            <label key={type.id} className="flex flex-col gap-0.5 text-[10px] font-medium uppercase tracking-wide text-muted">
+              {formatRepresentationTypeLabel(type.name)}
+              <input
+                type="text"
+                value={representationDrafts[type.id] ?? ""}
+                disabled={saving}
+                onChange={(e) =>
+                  setRepresentationDrafts((prev) => ({ ...prev, [type.id]: e.target.value }))
+                }
+                className={fieldClassName}
+              />
+            </label>
+          ))}
+          <input
+            ref={meaningRef}
+            type="text"
+            value={meaning}
+            disabled={saving}
+            placeholder="Memory cue (no spoilers)…"
+            title={MEANING_HINT}
+            onChange={(e) => setMeaning(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") closeEditing()
+              if (e.key === "Enter") {
+                e.preventDefault()
+                void submit()
+              }
+            }}
+            className={fieldClassName}
+          />
+          {canSubmit ? (
+            <PrimaryActionButton type="button" size="compact" className="shadow-lg" onClick={() => void submit()}>
+              Add case
+            </PrimaryActionButton>
+          ) : null}
+        </div>
       </AnchoredPopupPanel>
     </div>
   )

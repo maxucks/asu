@@ -13,6 +13,7 @@ import {
   type PracticeError,
 } from "@/practice/practice_errors"
 import { PracticeCard } from "@/practice/practice_model"
+import type { CaseRepresentationWrite } from "@/core/data_sources/http_case_data_source"
 import type { PracticeGradeDto, PracticeCardDto } from "@/practice/practice_repository"
 import { PracticeGrades } from "@/practice/practice_repository"
 import { parseCaseValue, parseCaseMeaning } from "@/practice/practice_model"
@@ -389,7 +390,11 @@ export function usePracticeSessionController(
   const reloadPracticeSession = useCallback(async () => bootstrapSession(), [bootstrapSession])
 
   const createVocabularyCase = useCallback(
-    async (caseValue: string, meaning: string): Promise<boolean> => {
+    async (
+      caseValue: string,
+      meaning: string,
+      representations?: readonly CaseRepresentationWrite[],
+    ): Promise<boolean> => {
       setVocabularyBusyCaseId("create")
       const value = parseCaseValue(caseValue)
       if (value === null) {
@@ -397,7 +402,12 @@ export function usePracticeSessionController(
         setVocabularyBusyCaseId(null)
         return false
       }
-      const result = await practiceRepository.createCase(languageId, value, parseCaseMeaning(meaning))
+      const result = await practiceRepository.createCase(
+        languageId,
+        value,
+        parseCaseMeaning(meaning),
+        representations,
+      )
       if (!result.ok) {
         setState(createPracticeSessionViewStateError(result.error))
         setVocabularyBusyCaseId(null)
@@ -411,7 +421,12 @@ export function usePracticeSessionController(
   )
 
   const updateVocabularyCase = useCallback(
-    async (caseId: string, caseValue: string, meaning: string): Promise<boolean> => {
+    async (
+      caseId: string,
+      caseValue: string,
+      meaning: string,
+      representations?: readonly CaseRepresentationWrite[],
+    ): Promise<boolean> => {
       setVocabularyBusyCaseId(caseId)
       const value = parseCaseValue(caseValue)
       if (value === null) {
@@ -422,6 +437,7 @@ export function usePracticeSessionController(
       const result = await practiceRepository.updateCase(caseId, {
         value,
         meaning: parseCaseMeaning(meaning),
+        representations,
       })
       if (!result.ok) {
         setState(createPracticeSessionViewStateError(result.error))

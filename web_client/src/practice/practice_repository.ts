@@ -12,6 +12,9 @@ import type { CategoryDto } from "@/core/data_sources/http_category_data_source"
 import type { HttpCategoryDataSource } from "@/core/data_sources/http_category_data_source";
 import type { HttpLanguageDataSource } from "@/core/data_sources/http_language_data_source";
 import type { LanguageDto } from "@/core/data_sources/http_language_data_source";
+import type { CaseRepresentationWrite } from "@/core/data_sources/http_case_data_source";
+import type { HttpRepresentationTypeDataSource } from "@/core/data_sources/http_representation_type_data_source";
+import type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source";
 import {
   practiceAssociationErrorFromThrown,
   practiceCardNotFoundError,
@@ -29,6 +32,11 @@ export type {
 } from "@/core/data_sources/http_case_data_source";
 export type { CategoryDto } from "@/core/data_sources/http_category_data_source";
 export type { LanguageDto } from "@/core/data_sources/http_language_data_source";
+export type {
+  CaseRepresentationDto,
+  CaseRepresentationWrite,
+} from "@/core/data_sources/http_case_data_source";
+export type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source";
 
 export const PracticeGrades = ["hard", "medium", "easy"] as const;
 
@@ -39,7 +47,18 @@ export class PracticeRepository {
     private readonly caseDataSource: HttpCaseDataSource,
     private readonly languageDataSource: HttpLanguageDataSource,
     private readonly categoryDataSource: HttpCategoryDataSource,
+    private readonly representationTypeDataSource: HttpRepresentationTypeDataSource,
   ) {}
+
+  async listRepresentationTypes(
+    languageId: string,
+  ): Promise<Result<readonly RepresentationTypeDto[], PracticeError>> {
+    try {
+      return ok(await this.representationTypeDataSource.listForLanguage(languageId));
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
 
   async listLanguages(): Promise<Result<readonly LanguageDto[], PracticeError>> {
     try {
@@ -289,9 +308,10 @@ export class PracticeRepository {
     languageId: string,
     value: string,
     meaning: string | null,
+    representations?: readonly CaseRepresentationWrite[],
   ): Promise<Result<PracticeCardDto, PracticeError>> {
     try {
-      const caseDto = await this.caseDataSource.createCaseDto(languageId, value, meaning);
+      const caseDto = await this.caseDataSource.createCaseDto(languageId, value, meaning, representations);
       return ok(caseDto);
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown));
@@ -300,7 +320,11 @@ export class PracticeRepository {
 
   async updateCase(
     caseId: string,
-    patch: { readonly value?: string; readonly meaning?: string | null },
+    patch: {
+      readonly value?: string;
+      readonly meaning?: string | null;
+      readonly representations?: readonly CaseRepresentationWrite[];
+    },
   ): Promise<Result<PracticeCardDto, PracticeError>> {
     try {
       const caseDto = await this.caseDataSource.updateCaseDto(caseId, patch);
@@ -333,6 +357,7 @@ export class PracticeRepository {
       meaning: caseDto.meaning,
       associations: caseDto.associations,
       categories: caseDto.categories ?? [],
+      representations: caseDto.representations ?? [],
     };
   }
 

@@ -7,6 +7,7 @@ import { CaseLibraryDetailLayout } from "@/practice/components/case_library/case
 import { ConfirmBox } from "@/practice/components/session/confirm_box"
 import { useCaseDetailController } from "@/practice/hooks/use_case_detail_controller"
 import { useCaseDetailUi } from "@/practice/hooks/use_case_detail_ui"
+import type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source"
 import type { CategoryDto, PracticeCardDto, PracticeRepository } from "@/practice/practice_repository"
 import { associationKindLabel } from "@/practice/practice_utils"
 
@@ -18,6 +19,7 @@ type CaseLibraryDetailProps = {
   readonly onCardChange: (card: PracticeCardDto) => void
   readonly onDeleted: () => void
   readonly onCategoriesMetaChange: () => void
+  readonly representationTypes: readonly RepresentationTypeDto[]
 }
 
 export function CaseLibraryDetail({
@@ -28,9 +30,10 @@ export function CaseLibraryDetail({
   onCardChange,
   onDeleted,
   onCategoriesMetaChange,
+  representationTypes,
 }: CaseLibraryDetailProps) {
   const detail = useCaseDetailController(repo, card, onCardChange, onDeleted)
-  const ui = useCaseDetailUi(detail)
+  const ui = useCaseDetailUi(detail, representationTypes)
 
   const showAdd = ui.editor === null && !ui.editingCase
   const associationSortable = showAdd && !ui.editingCase
@@ -97,6 +100,7 @@ export function CaseLibraryDetail({
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
         <CaseLibraryDetailLayout
           caseTitle={detail.card.value}
+          representations={detail.card.representations}
           editingCase={ui.editingCase}
           caseSaving={ui.caseSaving}
           showAdd={showAdd}
@@ -109,6 +113,9 @@ export function CaseLibraryDetail({
           addUrl={addUrl}
           onValue={ui.setValueDraft}
           onMeaning={ui.setMeaningDraft}
+          representationTypes={representationTypes}
+          representationDrafts={ui.representationDrafts}
+          onRepresentationDraft={ui.setRepresentationDraft}
           onCancelCase={() => ui.setEditingCase(false)}
           onSaveCase={() => void ui.saveCaseEdit()}
           onEditCase={ui.startCaseEdit}

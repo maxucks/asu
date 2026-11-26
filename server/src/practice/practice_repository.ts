@@ -12,7 +12,13 @@ import { DrizzleStudyRecordDataSource } from "@/core/data_sources/study_record_d
 import type {
   AssociationDto,
   CaseDto,
+  CaseRepresentationDto,
 } from "@/core/data_sources/case_data_source_drizzle"
+import type { CaseRepresentationWrite } from "@/core/data_sources/case_representation_data_source_drizzle"
+import type {
+  DrizzleRepresentationTypeDataSource,
+  RepresentationTypeDto,
+} from "@/core/data_sources/representation_type_data_source_drizzle"
 
 export type CaseCategoryRefDto = {
   readonly id: string
@@ -26,7 +32,10 @@ export type PracticeCardDto = {
   readonly meaning: string | null
   readonly associations: readonly AssociationDto[]
   readonly categories: readonly CaseCategoryRefDto[]
+  readonly representations: readonly CaseRepresentationDto[]
 }
+
+export type { CaseRepresentationDto, RepresentationTypeDto }
 
 export type PracticeQueueDto = {
   readonly cards: readonly PracticeCardDto[]
@@ -63,7 +72,18 @@ export class PracticeRepository {
     private readonly caseDataSource: DrizzleCaseDataSource,
     private readonly categoryDataSource: DrizzleCategoryDataSource,
     private readonly languageDataSource: DrizzleLanguageDataSource,
+    private readonly representationTypeDataSource: DrizzleRepresentationTypeDataSource,
   ) {}
+
+  async listRepresentationTypes(
+    languageId: string,
+  ): Promise<Result<readonly RepresentationTypeDto[], PracticeError>> {
+    try {
+      return ok(await this.representationTypeDataSource.listForLanguageId(languageId))
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
 
   private async listCasesForPractice(
     languageId: string,
@@ -372,9 +392,10 @@ export class PracticeRepository {
     languageId: string,
     value: string,
     meaning: string | null,
+    representations?: readonly CaseRepresentationWrite[],
   ): Promise<Result<PracticeCardDto, PracticeError>> {
     try {
-      const caseDto = await this.caseDataSource.createCaseDto(value, meaning, languageId)
+      const caseDto = await this.caseDataSource.createCaseDto(value, meaning, languageId, representations)
       await this.studyRecordDataSource.insertStudyRecordDto(createInitialStudyRecord(caseDto.id))
       return ok(PracticeRepository.caseDtoToPracticeCard(caseDto))
     } catch (thrown) {
@@ -384,7 +405,11 @@ export class PracticeRepository {
 
   async updateCase(
     caseId: string,
-    patch: { readonly value?: string; readonly meaning?: string | null },
+    patch: {
+      readonly value?: string
+      readonly meaning?: string | null
+      readonly representations?: readonly CaseRepresentationWrite[]
+    },
   ): Promise<Result<PracticeCardDto, PracticeError>> {
     try {
       const caseDto = await this.caseDataSource.updateCaseDto(caseId, patch)
@@ -417,6 +442,7 @@ export class PracticeRepository {
       meaning: caseDto.meaning,
       associations: caseDto.associations,
       categories: caseDto.categories,
+      representations: caseDto.representations,
     }
   }
 

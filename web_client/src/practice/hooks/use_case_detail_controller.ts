@@ -1,4 +1,5 @@
 import { err, type Result } from "@/core/app_errors"
+import type { CaseRepresentationWrite } from "@/core/data_sources/http_case_data_source"
 import type { PracticeCardDto } from "@/practice/practice_repository"
 import { PracticeCard } from "@/practice/practice_model"
 import {
@@ -63,12 +64,16 @@ export function useCaseDetailController(
   )
 
   const updateCase = useCallback(
-    async (caseValue: string, meaning: string): Promise<boolean> => {
+    async (
+      caseValue: string,
+      meaning: string,
+      representations?: readonly CaseRepresentationWrite[],
+    ): Promise<boolean> => {
       const value = parseCaseValue(caseValue)
       if (value === null) return false
       setCaseBusy("update")
       const okResult = await runMutation(() =>
-        repo.updateCase(card.id, { value, meaning: parseCaseMeaning(meaning) }),
+        repo.updateCase(card.id, { value, meaning: parseCaseMeaning(meaning), representations }),
       )
       setCaseBusy(false)
       return okResult

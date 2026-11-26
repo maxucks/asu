@@ -113,6 +113,11 @@ export const practiceSetCaseCategoriesBodySchema = z.object({
   categoryIds: z.array(routeId),
 })
 
+const caseRepresentationWriteSchema = z.object({
+  representationTypeId: z.number().int().positive(),
+  value: z.string().nullable(),
+})
+
 export const practiceCreateCaseBodySchema = z.object({
   languageId: routeId,
   value: caseValueField,
@@ -124,6 +129,7 @@ export const practiceCreateCaseBodySchema = z.object({
       const text = raw.trim()
       return text.length > 0 ? text : null
     }),
+  representations: z.array(caseRepresentationWriteSchema).optional(),
 })
 
 export const practiceUpdateCaseBodySchema = z
@@ -139,7 +145,12 @@ export const practiceUpdateCaseBodySchema = z
         const text = raw.trim()
         return text.length > 0 ? text : null
       }),
+    representations: z.array(caseRepresentationWriteSchema).optional(),
   })
-  .refine((value) => value.value !== undefined || value.meaning !== undefined, {
-    message: "Provide value or meaning to update.",
-  })
+  .refine(
+    (value) =>
+      value.value !== undefined || value.meaning !== undefined || value.representations !== undefined,
+    {
+      message: "Provide value, meaning, or representations to update.",
+    },
+  )

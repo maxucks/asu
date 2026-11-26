@@ -7,7 +7,9 @@ Target schema for repositories (in-memory mocks now; SQL/API later). **Case** is
 | Entity | Key rules |
 |--------|-----------|
 | **Language** | Has many cases; delete cascades cases |
-| **Case** | `value`, optional `meaning` (sense description)/image/nuance; belongs to one language |
+| **Case** | `value`, optional `meaning` (sense description)/image/nuance; belongs to one language; optional **case representations** per type (romaji, hiragana, transliteration, …) |
+| **Representation type** | Catalog per language (or global `transliteration`); managed in DB only |
+| **Case representation** | Alternate surface form for typing (`case_id` + `representation_type_id` + `value`) |
 | **Example** | `text`; many per case; cascade on case delete |
 | **Association** | `kind`, `content_ref`, `hidden_from_practice`, optional `sort_order`, `created_at`; many per case |
 | **StudyRecord** | PK **`case_id`** (prototype); one row per studied case |

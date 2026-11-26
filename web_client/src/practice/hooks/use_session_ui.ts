@@ -1,5 +1,11 @@
+import type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source"
 import type { PracticeAssociation } from "@/practice/practice_model"
 import type { usePracticeSessionController } from "@/practice/practice_session_controller"
+import {
+  emptyRepresentationDrafts,
+  representationDraftsFromCard,
+  representationWritesFromDrafts,
+} from "@/practice/practice_representation"
 import { isAssociationOnCard } from "@/practice/practice_session_view_state"
 import {
   type AssociationAddAction,
@@ -13,7 +19,10 @@ type Session = ReturnType<typeof usePracticeSessionController>
 
 type PendingAssocDelete = { readonly id: string; readonly label: string }
 
-export function useSessionUi(session: Session) {
+export function useSessionUi(
+  session: Session,
+  representationTypes: readonly RepresentationTypeDto[],
+) {
   const [editor, setEditor] = useState<AssociationEditorState | null>(null)
   const [pendingAssocDelete, setPendingAssocDelete] = useState<PendingAssocDelete | null>(null)
   const [pendingCaseDelete, setPendingCaseDelete] = useState(false)
@@ -21,16 +30,30 @@ export function useSessionUi(session: Session) {
   const [editingCase, setEditingCase] = useState(false)
   const [valueDraft, setValueDraft] = useState("")
   const [meaningDraft, setMeaningDraft] = useState("")
+  const [representationDrafts, setRepresentationDrafts] = useState<Record<number, string>>(() =>
+    emptyRepresentationDrafts(representationTypes),
+  )
 
   const saving = session.savingAssociation !== null || session.reorderingAssociations
   const adding = editor?.intent === "add" && (editor.mode === "text" || editor.mode === "image_url")
   const caseSaving = session.caseBusy !== null && session.caseBusy !== "create"
 
   useEffect(() => {
+    setRepresentationDrafts(emptyRepresentationDrafts(representationTypes))
+  }, [representationTypes])
+
+  useEffect(() => {
     if (!session.currentCard || editingCase) return
     setValueDraft(session.currentCard.value)
     setMeaningDraft(session.currentCard.meaning ?? "")
-  }, [session.currentCard, editingCase])
+    setRepresentationDrafts(
+      representationDraftsFromCard(representationTypes, session.currentCard.representations),
+    )
+  }, [session.currentCard, editingCase, representationTypes])
+
+  function setRepresentationDraft(typeId: number, text: string) {
+    setRepresentationDrafts((prev) => ({ ...prev, [typeId]: text }))
+  }
 
   function pickAssoc(action: AssociationAddAction) {
     switch (action.action) {
@@ -86,6 +109,7 @@ export function useSessionUi(session: Session) {
     if (!card) return
     setValueDraft(card.value)
     setMeaningDraft(card.meaning ?? "")
+    setRepresentationDrafts(representationDraftsFromCard(representationTypes, card.representations))
     setEditingCase(true)
     setEditor(null)
   }
@@ -93,7 +117,12 @@ export function useSessionUi(session: Session) {
   async function saveCaseEdit() {
     const card = session.currentCard
     if (!card) return
-    if (await session.updateCase(card.id, valueDraft, meaningDraft)) setEditingCase(false)
+    const representations = representationWritesFromDrafts(representationTypes, representationDrafts)
+    if (
+      await session.updateCase(card.id, valueDraft, meaningDraft, representations)
+    ) {
+      setEditingCase(false)
+    }
   }
 
   async function confirmCaseDelete() {
@@ -120,6 +149,8 @@ export function useSessionUi(session: Session) {
     setValueDraft,
     meaningDraft,
     setMeaningDraft,
+    representationDrafts,
+    setRepresentationDraft,
     saving,
     adding,
     caseSaving,

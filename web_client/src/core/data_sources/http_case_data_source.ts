@@ -9,6 +9,18 @@ export type CaseCategoryRefDto = {
   readonly name: string
 }
 
+export type CaseRepresentationDto = {
+  readonly id: string
+  readonly representationTypeId: number
+  readonly representationTypeName: string
+  readonly value: string
+}
+
+export type CaseRepresentationWrite = {
+  readonly representationTypeId: number
+  readonly value: string | null
+}
+
 export type AssociationDto = {
   readonly id: string
   readonly kind: AssociationKind
@@ -27,6 +39,7 @@ export type PracticeCardDto = {
   readonly meaning: string | null
   readonly associations: readonly AssociationDto[]
   readonly categories: readonly CaseCategoryRefDto[]
+  readonly representations: readonly CaseRepresentationDto[]
 }
 
 export type CaseDto = PracticeCardDto
@@ -100,13 +113,22 @@ export class HttpCaseDataSource {
     return queue
   }
 
-  async createCaseDto(languageId: string, value: string, meaning: string | null): Promise<CaseDto> {
-    return this.postCard("/api/practice/cases", { languageId, value, meaning })
+  async createCaseDto(
+    languageId: string,
+    value: string,
+    meaning: string | null,
+    representations?: readonly CaseRepresentationWrite[],
+  ): Promise<CaseDto> {
+    return this.postCard("/api/practice/cases", { languageId, value, meaning, representations })
   }
 
   async updateCaseDto(
     caseId: string,
-    patch: { readonly value?: string; readonly meaning?: string | null },
+    patch: {
+      readonly value?: string
+      readonly meaning?: string | null
+      readonly representations?: readonly CaseRepresentationWrite[]
+    },
   ): Promise<CaseDto> {
     return this.patchCard(`/api/practice/cases/${caseId}`, { ...patch })
   }

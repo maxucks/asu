@@ -3,10 +3,14 @@ import { AssocListLayout } from "@/practice/components/assoc/list_layout"
 import { CaseFieldsLayout } from "@/practice/components/case/fields_layout"
 import { ToolbarLayout } from "@/practice/components/session/toolbar_layout"
 import type { AssociationAddAction } from "@/practice/practice_utils"
+import type { CaseRepresentationDto } from "@/core/data_sources/http_case_data_source"
+import { CaseValueRevealLayout } from "@/practice/components/case/case_value_reveal_layout"
+import type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source"
 import type { ReactNode } from "react"
 
 export type CaseLibraryDetailLayoutProps = {
   readonly caseTitle: string
+  readonly representations?: readonly CaseRepresentationDto[]
   readonly editingCase: boolean
   readonly caseSaving: boolean
   readonly showAdd: boolean
@@ -19,6 +23,9 @@ export type CaseLibraryDetailLayoutProps = {
   readonly addUrl: ReactNode
   readonly onValue: (v: string) => void
   readonly onMeaning: (v: string) => void
+  readonly representationTypes?: readonly RepresentationTypeDto[]
+  readonly representationDrafts?: Record<number, string>
+  readonly onRepresentationDraft?: (typeId: number, text: string) => void
   readonly onCancelCase: () => void
   readonly onSaveCase: () => void
   readonly onEditCase: () => void
@@ -53,12 +60,23 @@ export function CaseLibraryDetailLayout(props: CaseLibraryDetailLayoutProps) {
             disabled={props.caseSaving}
             onValue={props.onValue}
             onMeaning={props.onMeaning}
+            representationTypes={props.representationTypes}
+            representationDrafts={props.representationDrafts}
+            onRepresentationDraft={props.onRepresentationDraft}
           />
-        ) : props.cardMeaning ? (
-          <p className="rounded-xl border border-grid-line bg-tile px-4 py-3 text-sm leading-relaxed text-foreground/90">
-            {props.cardMeaning}
-          </p>
-        ) : null}
+        ) : (
+          <>
+            <CaseValueRevealLayout
+              representations={props.representations}
+              variant="inline"
+            />
+            {props.cardMeaning ? (
+              <p className="rounded-xl border border-grid-line bg-tile px-4 py-3 text-sm leading-relaxed text-foreground/90">
+                {props.cardMeaning}
+              </p>
+            ) : null}
+          </>
+        )}
         {props.caseCategories ? (
           <div className="relative z-20 overflow-visible">{props.caseCategories}</div>
         ) : null}

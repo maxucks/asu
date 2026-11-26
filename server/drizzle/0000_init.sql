@@ -49,6 +49,27 @@ CREATE TABLE IF NOT EXISTS `case_categories` (
 CREATE INDEX IF NOT EXISTS `case_categories_case_id_idx` ON `case_categories` (`case_id`);
 CREATE INDEX IF NOT EXISTS `case_categories_category_id_idx` ON `case_categories` (`category_id`);
 
+CREATE TABLE IF NOT EXISTS `representation_types` (
+	`id` integer PRIMARY KEY NOT NULL,
+	`language_id` text,
+	`name` text NOT NULL,
+	FOREIGN KEY (`language_id`) REFERENCES `languages`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS `representation_types_language_name_uq` ON `representation_types` (`language_id`,`name`);
+
+CREATE TABLE IF NOT EXISTS `case_representations` (
+	`id` text PRIMARY KEY NOT NULL,
+	`case_id` text NOT NULL,
+	`representation_type_id` integer NOT NULL,
+	`value` text NOT NULL,
+	FOREIGN KEY (`case_id`) REFERENCES `cases`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`representation_type_id`) REFERENCES `representation_types`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS `case_representations_case_type_uq` ON `case_representations` (`case_id`,`representation_type_id`);
+CREATE INDEX IF NOT EXISTS `case_representations_case_id_idx` ON `case_representations` (`case_id`);
+
 CREATE TABLE IF NOT EXISTS `study_records` (
 	`case_id` text PRIMARY KEY NOT NULL,
 	`review_status` text NOT NULL,

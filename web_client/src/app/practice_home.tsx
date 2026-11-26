@@ -6,6 +6,7 @@ import { SessionScreen } from "@/practice/components/session/session_screen";
 import { PracticeContextProvider } from "@/practice/context/practice_context";
 import type { PracticeContextValue } from "@/practice/practice_context_value";
 import { HttpCategoryDataSource } from "@/core/data_sources/http_category_data_source";
+import { HttpRepresentationTypeDataSource } from "@/core/data_sources/http_representation_type_data_source";
 import {
   readStoredCategoryId,
   writeStoredCategoryId,
@@ -50,6 +51,7 @@ export function PracticeHome() {
       new HttpCaseDataSource(queueCardsById),
       new HttpLanguageDataSource(),
       new HttpCategoryDataSource(),
+      new HttpRepresentationTypeDataSource(),
     );
     return { repo, activeLanguageId, setActiveLanguageId, activeCategoryId, setActiveCategoryId };
   }, [activeLanguageId, setActiveLanguageId, activeCategoryId, setActiveCategoryId]);

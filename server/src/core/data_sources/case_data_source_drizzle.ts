@@ -28,10 +28,18 @@ export type CaseDto = {
   readonly meaning: string | null
   readonly associations: readonly AssociationDto[]
   readonly categories: readonly CaseCategoryRefDto[]
+  readonly representations: readonly CaseRepresentationDto[]
 }
+import type {
+  CaseRepresentationDto,
+  CaseRepresentationWrite,
+  DrizzleCaseRepresentationDataSource,
+} from "@/core/data_sources/case_representation_data_source_drizzle"
 import type { DrizzleCategoryDataSource } from "@/core/data_sources/category_data_source_drizzle"
 import { db } from "@/core/db"
 import { associations, cases, languages } from "@/db/schema"
+
+export type { CaseRepresentationDto } from "@/core/data_sources/case_representation_data_source_drizzle"
 function mapAssociationRow(row: typeof associations.$inferSelect): AssociationDto {
   return {
     id: row.id,
@@ -45,9 +53,15 @@ function mapAssociationRow(row: typeof associations.$inferSelect): AssociationDt
 }
 
 export class DrizzleCaseDataSource {
-  constructor(private readonly categoryDataSource: DrizzleCategoryDataSource) {}
+  constructor(
+    private readonly categoryDataSource: DrizzleCategoryDataSource,
+    private readonly caseRepresentationDataSource: DrizzleCaseRepresentationDataSource,
+  ) {}
 
-  private async loadCaseDto(caseId: string): Promise<CaseDto> {
+  private async loadCaseDto(
+    caseId: string,
+    representations?: readonly CaseRepresentationDto[],
+  ): Promise<CaseDto> {
   const rows = await db
     .select({
       caseId: cases.id,
@@ -72,6 +86,8 @@ export class DrizzleCaseDataSource {
     .orderBy(asc(associations.sortOrder))
 
   const categoryMap = await this.categoryDataSource.listCategoryRefsByCaseIds([base.caseId])
+  const reps =
+    representations ?? (await this.caseRepresentationDataSource.listForCaseId(caseId))
 
   return {
     id: base.caseId,
@@ -80,6 +96,7 @@ export class DrizzleCaseDataSource {
     meaning: base.meaning,
     associations: assocRows.map(mapAssociationRow),
     categories: categoryMap.get(base.caseId) ?? [],
+    representations: reps,
   }
   }
 
@@ -90,14 +107,22 @@ export class DrizzleCaseDataSource {
       .where(eq(cases.languageId, languageId))
       .orderBy(asc(cases.value))
 
+    const caseIds = rows.map((row) => row.id)
+    const repMap = await this.caseRepresentationDataSource.listForCaseIds(caseIds)
+
     const loaded: CaseDto[] = []
     for (const row of rows) {
-      loaded.push(await this.loadCaseDto(row.id))
+      loaded.push(await this.loadCaseDto(row.id, repMap.get(row.id) ?? []))
     }
     return loaded
   }
 
-  async createCaseDto(value: string, meaning: string | null, languageId: string = DEFAULT_LANGUAGE_ID): Promise<CaseDto> {
+  async createCaseDto(
+    value: string,
+    meaning: string | null,
+    languageId: string = DEFAULT_LANGUAGE_ID,
+    representations?: readonly CaseRepresentationWrite[],
+  ): Promise<CaseDto> {
     const id = newEntityId()
     await db.insert(cases).values({
       id,
@@ -105,13 +130,31 @@ export class DrizzleCaseDataSource {
       value,
       meaning,
     })
+    if (representations && representations.length > 0) {
+      await this.caseRepresentationDataSource.syncForCase(id, languageId, representations)
+    }
     return this.loadCaseDto(id)
   }
 
   async updateCaseDto(
     caseId: string,
-    patch: { readonly value?: string; readonly meaning?: string | null },
+    patch: {
+      readonly value?: string
+      readonly meaning?: string | null
+      readonly representations?: readonly CaseRepresentationWrite[]
+    },
   ): Promise<CaseDto> {
+    const existing = await db
+      .select({ languageId: cases.languageId })
+      .from(cases)
+      .where(eq(cases.id, caseId))
+      .limit(1)
+
+    const languageId = existing[0]?.languageId
+    if (!languageId) {
+      throw new Error(`Record not found: ${caseId}`)
+    }
+
     const updates: { value?: string; meaning?: string | null } = {}
     if (patch.value !== undefined) updates.value = patch.value
     if (patch.meaning !== undefined) updates.meaning = patch.meaning
@@ -121,6 +164,10 @@ export class DrizzleCaseDataSource {
       if (updated.length === 0) {
         throw new Error(`Record not found: ${caseId}`)
       }
+    }
+
+    if (patch.representations) {
+      await this.caseRepresentationDataSource.syncForCase(caseId, languageId, patch.representations)
     }
 
     return this.loadCaseDto(caseId)

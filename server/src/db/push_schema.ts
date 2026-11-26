@@ -17,6 +17,7 @@ applyLanguagesTableMigrations(sqlite)
 applyAssociationsTableMigrations(sqlite)
 applyStudyRecordsTableMigrations(sqlite)
 applyCategoriesTableMigrations(sqlite)
+applyRepresentationTablesMigrations(sqlite)
 sqlite.close()
 
 log.info("schema applied", { database: databaseUrl })
@@ -155,4 +156,51 @@ CREATE INDEX IF NOT EXISTS case_categories_category_id_idx ON case_categories (c
 `)
     log.info("created case_categories table")
   }
+}
+
+function applyRepresentationTablesMigrations(sqlite: Database) {
+  const typesExists = sqlite
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'representation_types' LIMIT 1")
+    .get()
+
+  if (!typesExists) {
+    sqlite.exec(`
+CREATE TABLE IF NOT EXISTS representation_types (
+  id integer PRIMARY KEY NOT NULL,
+  language_id text,
+  name text NOT NULL,
+  FOREIGN KEY (language_id) REFERENCES languages(id) ON UPDATE no action ON DELETE cascade
+);
+CREATE UNIQUE INDEX IF NOT EXISTS representation_types_language_name_uq ON representation_types (language_id, name);
+`)
+    log.info("created representation_types table")
+  }
+
+  const caseRepsExists = sqlite
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'case_representations' LIMIT 1")
+    .get()
+
+  if (!caseRepsExists) {
+    sqlite.exec(`
+CREATE TABLE IF NOT EXISTS case_representations (
+  id text PRIMARY KEY NOT NULL,
+  case_id text NOT NULL,
+  representation_type_id integer NOT NULL,
+  value text NOT NULL,
+  FOREIGN KEY (case_id) REFERENCES cases(id) ON UPDATE no action ON DELETE cascade,
+  FOREIGN KEY (representation_type_id) REFERENCES representation_types(id) ON UPDATE no action ON DELETE cascade
+);
+CREATE UNIQUE INDEX IF NOT EXISTS case_representations_case_type_uq ON case_representations (case_id, representation_type_id);
+CREATE INDEX IF NOT EXISTS case_representations_case_id_idx ON case_representations (case_id);
+`)
+    log.info("created case_representations table")
+  }
+
+  sqlite.exec(`
+INSERT OR IGNORE INTO representation_types (id, language_id, name) VALUES
+  (1, NULL, 'transliteration'),
+  (2, 'lang-japanese', 'romaji'),
+  (3, 'lang-japanese', 'katakana'),
+  (4, 'lang-japanese', 'hiragana');
+`)
 }

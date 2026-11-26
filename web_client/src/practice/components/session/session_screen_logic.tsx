@@ -11,6 +11,7 @@ import { ShellLayout } from "@/practice/components/session/shell_layout"
 import { StatusLayout } from "@/practice/components/session/status_layout"
 import { useActiveLanguageMeta } from "@/practice/hooks/use_active_language"
 import { usePractice } from "@/practice/hooks/use_practice"
+import { useRepresentationTypes } from "@/practice/hooks/use_representation_types"
 import { useSessionUi } from "@/practice/hooks/use_session_ui"
 import { usePracticeSessionController } from "@/practice/practice_session_controller"
 import { isAssociationOnCard } from "@/practice/practice_session_view_state"
@@ -23,7 +24,8 @@ import { useCallback, useEffect, useState } from "react"
 export function SessionScreenLogic() {
   const { repo, activeLanguageId, setActiveLanguageId, activeCategoryId, setActiveCategoryId } = usePractice()
   const session = usePracticeSessionController(repo, activeLanguageId, activeCategoryId)
-  const ui = useSessionUi(session)
+  const { types: representationTypes } = useRepresentationTypes(repo, activeLanguageId)
+  const ui = useSessionUi(session, representationTypes)
   const { name: languageName, icon: languageIcon } = useActiveLanguageMeta()
   const [languageOpen, setLanguageOpen] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
@@ -128,6 +130,7 @@ export function SessionScreenLogic() {
       languageId={activeLanguageId}
       languageName={languageName}
       languageIcon={languageIcon}
+      representationTypes={representationTypes}
       repo={repo}
       onClose={() => setLibraryOpen(false)}
       onVocabularyChange={() => void session.reloadQueue()}
@@ -268,12 +271,16 @@ export function SessionScreenLogic() {
         meaning={ui.meaningDraft}
         cardMeaning={card?.meaning ?? undefined}
         revealValue={card?.value}
+        revealRepresentations={card?.representations}
         showValue={!onFront && card !== null && !ui.editingCase}
         rows={rows}
         addText={addText}
         addUrl={addUrl}
         onValue={ui.setValueDraft}
         onMeaning={ui.setMeaningDraft}
+        representationTypes={representationTypes}
+        representationDrafts={ui.representationDrafts}
+        onRepresentationDraft={ui.setRepresentationDraft}
         onCancelCase={() => ui.setEditingCase(false)}
         onSaveCase={() => void ui.saveCaseEdit()}
         onEditCase={ui.startCaseEdit}

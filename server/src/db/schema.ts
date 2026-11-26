@@ -68,6 +68,34 @@ export const caseCategories = sqliteTable(
   ],
 )
 
+export const representationTypes = sqliteTable(
+  "representation_types",
+  {
+    id: integer("id").primaryKey(),
+    languageId: text("language_id").references(() => languages.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+  },
+  (table) => [uniqueIndex("representation_types_language_name_uq").on(table.languageId, table.name)],
+)
+
+export const caseRepresentations = sqliteTable(
+  "case_representations",
+  {
+    id: text("id").primaryKey(),
+    caseId: text("case_id")
+      .notNull()
+      .references(() => cases.id, { onDelete: "cascade" }),
+    representationTypeId: integer("representation_type_id")
+      .notNull()
+      .references(() => representationTypes.id, { onDelete: "cascade" }),
+    value: text("value").notNull(),
+  },
+  (table) => [
+    uniqueIndex("case_representations_case_type_uq").on(table.caseId, table.representationTypeId),
+    index("case_representations_case_id_idx").on(table.caseId),
+  ],
+)
+
 export const studyRecords = sqliteTable("study_records", {
   caseId: text("case_id")
     .primaryKey()

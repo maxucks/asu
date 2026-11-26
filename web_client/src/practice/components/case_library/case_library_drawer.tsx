@@ -7,6 +7,9 @@ import {
   readStoredLibraryCaseId,
   writeStoredLibraryCaseId,
 } from "@/practice/practice_language"
+import type { CaseRepresentationWrite } from "@/core/data_sources/http_case_data_source"
+import type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source"
+import { representationWritesFromDrafts } from "@/practice/practice_representation"
 import type { CategoryDto, PracticeCardDto, PracticeRepository } from "@/practice/practice_repository"
 import { useCallback, useEffect, useState } from "react"
 
@@ -18,6 +21,7 @@ type CaseLibraryDrawerProps = {
   readonly repo: PracticeRepository
   readonly onClose: () => void
   readonly onVocabularyChange?: () => void
+  readonly representationTypes: readonly RepresentationTypeDto[]
 }
 
 function resolveSelectedCaseId(cards: readonly PracticeCardDto[], languageId: string, preferId?: string | null): string | null {
@@ -42,6 +46,7 @@ export function CaseLibraryDrawer({
   repo,
   onClose,
   onVocabularyChange,
+  representationTypes,
 }: CaseLibraryDrawerProps) {
   const [cards, setCards] = useState<readonly PracticeCardDto[]>([])
   const [loading, setLoading] = useState(false)
@@ -111,9 +116,17 @@ export function CaseLibraryDrawer({
     onVocabularyChange?.()
   }
 
-  async function handleCreate(lemma: string, meaning: string): Promise<boolean> {
+  async function handleCreate(
+    value: string,
+    meaning: string,
+    representationDrafts: Record<number, string>,
+  ): Promise<boolean> {
     setCreateBusy(true)
-    const result = await repo.createCase(languageId, lemma, parseCaseMeaning(meaning))
+    const representations: readonly CaseRepresentationWrite[] = representationWritesFromDrafts(
+      representationTypes,
+      representationDrafts,
+    )
+    const result = await repo.createCase(languageId, value, parseCaseMeaning(meaning), representations)
     setCreateBusy(false)
     if (!result.ok) {
       setError(result.error.message)
@@ -147,7 +160,13 @@ export function CaseLibraryDrawer({
             <h2 className="truncate text-base font-semibold text-foreground">{languageName ?? "Vocabulary"}</h2>
             <p className="text-xs text-muted">{cards.length} entries</p>
           </div>
-          <CaseLibraryAddCaseControl saving={createBusy} onCreate={(lemma, meaning) => handleCreate(lemma, meaning)} />
+          <CaseLibraryAddCaseControl
+            representationTypes={representationTypes}
+            saving={createBusy}
+            onCreate={(value, meaning, representationDrafts) =>
+              handleCreate(value, meaning, representationDrafts)
+            }
+          />
           <IconButton label="Close library" onClick={onClose}>
             <IconClose />
           </IconButton>
@@ -161,7 +180,13 @@ export function CaseLibraryDrawer({
               {!loading && cards.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 rounded-xl border border-grid-line bg-card px-4 py-8 text-center">
                   <p className="text-sm text-muted">No entries yet.</p>
-                  <CaseLibraryAddCaseControl saving={createBusy} onCreate={(lemma, meaning) => handleCreate(lemma, meaning)} />
+                  <CaseLibraryAddCaseControl
+            representationTypes={representationTypes}
+            saving={createBusy}
+            onCreate={(value, meaning, representationDrafts) =>
+              handleCreate(value, meaning, representationDrafts)
+            }
+          />
                 </div>
               ) : null}
               {cards.length > 0 ? (
@@ -190,6 +215,7 @@ export function CaseLibraryDrawer({
               onCardChange={handleCardChange}
               onDeleted={handleDeleted}
               onCategoriesMetaChange={() => void refreshCategoryMeta()}
+              representationTypes={representationTypes}
             />
           ) : null}
         </div>
