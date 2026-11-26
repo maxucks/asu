@@ -5,7 +5,7 @@ type OverlaysLayoutProps = {
   readonly createOpen: boolean
   readonly createBusy: boolean
   readonly onCloseCreate: () => void
-  readonly onCreate: (lemma: string, meaning: string) => void
+  readonly onCreate: (value: string, meaning: string) => void
   readonly assocDelete: { readonly open: boolean; readonly message: string; readonly busy: boolean; readonly onCancel: () => void; readonly onConfirm: () => void }
   readonly caseDelete: { readonly open: boolean; readonly message: string; readonly busy: boolean; readonly onCancel: () => void; readonly onConfirm: () => void }
 }

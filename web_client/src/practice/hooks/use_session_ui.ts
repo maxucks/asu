@@ -19,7 +19,7 @@ export function useSessionUi(session: Session) {
   const [pendingCaseDelete, setPendingCaseDelete] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [editingCase, setEditingCase] = useState(false)
-  const [lemmaDraft, setLemmaDraft] = useState("")
+  const [valueDraft, setValueDraft] = useState("")
   const [meaningDraft, setMeaningDraft] = useState("")
 
   const saving = session.savingAssociation !== null || session.reorderingAssociations
@@ -28,7 +28,7 @@ export function useSessionUi(session: Session) {
 
   useEffect(() => {
     if (!session.currentCard || editingCase) return
-    setLemmaDraft(session.currentCard.lemmaText)
+    setValueDraft(session.currentCard.value)
     setMeaningDraft(session.currentCard.meaning ?? "")
   }, [session.currentCard, editingCase])
 
@@ -84,7 +84,7 @@ export function useSessionUi(session: Session) {
   function startCaseEdit() {
     const card = session.currentCard
     if (!card) return
-    setLemmaDraft(card.lemmaText)
+    setValueDraft(card.value)
     setMeaningDraft(card.meaning ?? "")
     setEditingCase(true)
     setEditor(null)
@@ -93,7 +93,7 @@ export function useSessionUi(session: Session) {
   async function saveCaseEdit() {
     const card = session.currentCard
     if (!card) return
-    if (await session.updateCase(card.id, lemmaDraft, meaningDraft)) setEditingCase(false)
+    if (await session.updateCase(card.id, valueDraft, meaningDraft)) setEditingCase(false)
   }
 
   async function confirmCaseDelete() {
@@ -116,8 +116,8 @@ export function useSessionUi(session: Session) {
     setCreateOpen,
     editingCase,
     setEditingCase,
-    lemmaDraft,
-    setLemmaDraft,
+    valueDraft,
+    setValueDraft,
     meaningDraft,
     setMeaningDraft,
     saving,

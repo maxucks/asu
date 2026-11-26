@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS `languages` (
 CREATE TABLE IF NOT EXISTS `cases` (
 	`id` text PRIMARY KEY NOT NULL,
 	`language_id` text NOT NULL,
-	`lemma_text` text NOT NULL,
+	`value` text NOT NULL,
 	`meaning` text,
 	FOREIGN KEY (`language_id`) REFERENCES `languages`(`id`) ON UPDATE no action ON DELETE cascade
 );

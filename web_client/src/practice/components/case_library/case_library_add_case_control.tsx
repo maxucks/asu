@@ -3,11 +3,11 @@
 import { AnchoredPopupPanel } from "@/practice/components/category/anchored_popup_panel"
 import { PrimaryActionButton } from "@/practice/components/session/primary_action_button"
 import { IconPlus } from "@/practice/components/session/icon_button"
-import { parseCaseLemma } from "@/practice/practice_model"
+import { parseCaseValue } from "@/practice/practice_model"
 import { useEffect, useRef, useState } from "react"
 
 const ADD_CASE_HINT = "Save a new word to this language's vocabulary."
-const LEMMA_HINT = "Type the word or phrase as you'd meet it in the wild."
+const VALUE_HINT = "Type the word or phrase as you'd meet it in the wild."
 const MEANING_HINT =
   "A short cue to jog your memory—skip the direct translation so you still recall the word in the original language."
 
@@ -15,29 +15,29 @@ const FIELD_WIDTH_CLASS = "w-64"
 
 type CaseLibraryAddCaseControlProps = {
   readonly saving?: boolean
-  readonly onCreate: (lemma: string, meaning: string) => boolean | Promise<boolean>
+  readonly onCreate: (value: string, meaning: string) => boolean | Promise<boolean>
   readonly className?: string
 }
 
 export function CaseLibraryAddCaseControl({ saving, onCreate, className }: CaseLibraryAddCaseControlProps) {
   const [editing, setEditing] = useState(false)
-  const [lemma, setLemma] = useState("")
+  const [caseValue, setCaseValue] = useState("")
   const [meaning, setMeaning] = useState("")
   const rootRef = useRef<HTMLDivElement>(null)
   const anchorRef = useRef<HTMLDivElement>(null)
-  const lemmaRef = useRef<HTMLInputElement>(null)
+  const valueRef = useRef<HTMLInputElement>(null)
   const meaningRef = useRef<HTMLInputElement>(null)
 
-  const lemmaTrim = lemma.trim()
+  const valueTrim = caseValue.trim()
   const meaningTrim = meaning.trim()
-  const panelOpen = editing && lemmaTrim.length > 0
-  const canSubmit = lemmaTrim.length > 0 && meaningTrim.length > 0 && !saving
+  const panelOpen = editing && valueTrim.length > 0
+  const canSubmit = valueTrim.length > 0 && meaningTrim.length > 0 && !saving
 
   const fieldClassName = `h-9 w-full rounded-lg border border-grid-line bg-tile px-3 text-sm text-foreground placeholder:text-muted shadow-lg focus:border-accent/40 focus:outline-none disabled:opacity-50`
 
   useEffect(() => {
     if (!editing) return
-    const id = requestAnimationFrame(() => lemmaRef.current?.focus())
+    const id = requestAnimationFrame(() => valueRef.current?.focus())
     return () => cancelAnimationFrame(id)
   }, [editing])
 
@@ -52,7 +52,7 @@ export function CaseLibraryAddCaseControl({ saving, onCreate, className }: CaseL
       if (rootRef.current?.contains(target)) return
       if (target instanceof Element && target.closest("[data-case-add-panel]")) return
       setEditing(false)
-      setLemma("")
+      setCaseValue("")
       setMeaning("")
     }
     document.addEventListener("mousedown", onPointerDown)
@@ -66,15 +66,15 @@ export function CaseLibraryAddCaseControl({ saving, onCreate, className }: CaseL
 
   function closeEditing() {
     setEditing(false)
-    setLemma("")
+    setCaseValue("")
     setMeaning("")
   }
 
   async function submit() {
     if (!canSubmit) return
-    const lemmaText = parseCaseLemma(lemma)
-    if (lemmaText === null) return
-    const ok = await onCreate(lemmaText, meaningTrim)
+    const value = parseCaseValue(caseValue)
+    if (value === null) return
+    const ok = await onCreate(value, meaningTrim)
     if (ok) closeEditing()
   }
 
@@ -104,20 +104,20 @@ export function CaseLibraryAddCaseControl({ saving, onCreate, className }: CaseL
           </button>
         ) : (
           <input
-            ref={lemmaRef}
+            ref={valueRef}
             type="text"
-            value={lemma}
+            value={caseValue}
             disabled={saving}
             placeholder="Word or phrase…"
-            title={LEMMA_HINT}
-            onChange={(e) => setLemma(e.target.value)}
+            title={VALUE_HINT}
+            onChange={(e) => setCaseValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Escape") closeEditing()
-              if (e.key === "Tab" && !e.shiftKey && lemmaTrim.length > 0) {
+              if (e.key === "Tab" && !e.shiftKey && valueTrim.length > 0) {
                 e.preventDefault()
                 meaningRef.current?.focus()
               }
-              if (e.key === "Enter" && lemmaTrim.length > 0) {
+              if (e.key === "Enter" && valueTrim.length > 0) {
                 e.preventDefault()
                 meaningRef.current?.focus()
               }

@@ -49,34 +49,6 @@ export class PracticeRepository {
     }
   }
 
-  async createLanguage(name: string, icon: string): Promise<Result<LanguageDto, PracticeError>> {
-    try {
-      return ok(await this.languageDataSource.createLanguage(name, icon));
-    } catch (thrown) {
-      return err(practiceLanguageErrorFromThrown(thrown));
-    }
-  }
-
-  async updateLanguage(
-    languageId: string,
-    patch: { readonly name?: string; readonly icon?: string },
-  ): Promise<Result<LanguageDto, PracticeError>> {
-    try {
-      return ok(await this.languageDataSource.updateLanguage(languageId, patch));
-    } catch (thrown) {
-      return err(practiceLanguageErrorFromThrown(thrown));
-    }
-  }
-
-  async deleteLanguage(languageId: string): Promise<Result<void, PracticeError>> {
-    try {
-      await this.languageDataSource.deleteLanguage(languageId);
-      return ok(undefined);
-    } catch (thrown) {
-      return err(practiceLanguageErrorFromThrown(thrown));
-    }
-  }
-
   async appendTextAssociation(
     caseId: string,
     text: string,
@@ -85,7 +57,7 @@ export class PracticeRepository {
     try {
       const existing = await this.caseDataSource.getCaseDtoById(caseId);
       const association: AssociationDto = {
-        id: `assoc-${crypto.randomUUID()}`,
+        id: crypto.randomUUID(),
         kind: "text",
         contentRef: text,
         tileColor,
@@ -110,7 +82,7 @@ export class PracticeRepository {
     try {
       const existing = await this.caseDataSource.getCaseDtoById(caseId);
       const association: AssociationDto = {
-        id: `assoc-${crypto.randomUUID()}`,
+        id: crypto.randomUUID(),
         kind: "image",
         contentRef: url,
         tileColor: null,
@@ -315,11 +287,11 @@ export class PracticeRepository {
 
   async createCase(
     languageId: string,
-    lemmaText: string,
+    value: string,
     meaning: string | null,
   ): Promise<Result<PracticeCardDto, PracticeError>> {
     try {
-      const caseDto = await this.caseDataSource.createCaseDto(languageId, lemmaText, meaning);
+      const caseDto = await this.caseDataSource.createCaseDto(languageId, value, meaning);
       return ok(caseDto);
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown));
@@ -328,7 +300,7 @@ export class PracticeRepository {
 
   async updateCase(
     caseId: string,
-    patch: { readonly lemmaText?: string; readonly meaning?: string | null },
+    patch: { readonly value?: string; readonly meaning?: string | null },
   ): Promise<Result<PracticeCardDto, PracticeError>> {
     try {
       const caseDto = await this.caseDataSource.updateCaseDto(caseId, patch);
@@ -357,7 +329,7 @@ export class PracticeRepository {
     return {
       id: caseDto.id,
       languageName: caseDto.languageName,
-      lemmaText: caseDto.lemmaText,
+      value: caseDto.value,
       meaning: caseDto.meaning,
       associations: caseDto.associations,
       categories: caseDto.categories ?? [],

@@ -36,18 +36,25 @@ function applyCasesTableMigrations(sqlite: Database) {
     return
   }
 
-  const columns = sqlite.prepare("PRAGMA table_info(cases)").all() as SqliteTableColumn[]
-  const columnNames = new Set(columns.map((column) => column.name))
+  let columns = sqlite.prepare("PRAGMA table_info(cases)").all() as SqliteTableColumn[]
+  let columnNames = new Set(columns.map((column) => column.name))
 
   if (columnNames.has("translation") && !columnNames.has("meaning")) {
     sqlite.exec("ALTER TABLE cases RENAME COLUMN translation TO meaning")
     log.info("migrated cases.translation to cases.meaning")
-    return
+    columns = sqlite.prepare("PRAGMA table_info(cases)").all() as SqliteTableColumn[]
+    columnNames = new Set(columns.map((column) => column.name))
   }
 
   if (!columnNames.has("meaning")) {
     sqlite.exec("ALTER TABLE cases ADD COLUMN meaning text")
     log.info("added cases.meaning column")
+    columnNames.add("meaning")
+  }
+
+  if (columnNames.has("lemma_text") && !columnNames.has("value")) {
+    sqlite.exec("ALTER TABLE cases RENAME COLUMN lemma_text TO value")
+    log.info("migrated cases.lemma_text to cases.value")
   }
 }
 

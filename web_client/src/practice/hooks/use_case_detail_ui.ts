@@ -16,7 +16,7 @@ export function useCaseDetailUi(detail: CaseDetailController) {
   )
   const [pendingCaseDelete, setPendingCaseDelete] = useState(false)
   const [editingCase, setEditingCase] = useState(false)
-  const [lemmaDraft, setLemmaDraft] = useState("")
+  const [valueDraft, setValueDraft] = useState("")
   const [meaningDraft, setMeaningDraft] = useState("")
 
   const saving = detail.savingAssociation !== null || detail.reorderingAssociations
@@ -25,7 +25,7 @@ export function useCaseDetailUi(detail: CaseDetailController) {
 
   useEffect(() => {
     if (editingCase) return
-    setLemmaDraft(detail.card.lemmaText)
+    setValueDraft(detail.card.value)
     setMeaningDraft(detail.card.meaning ?? "")
   }, [detail.card, editingCase])
 
@@ -72,14 +72,14 @@ export function useCaseDetailUi(detail: CaseDetailController) {
   }
 
   function startCaseEdit() {
-    setLemmaDraft(detail.card.lemmaText)
+    setValueDraft(detail.card.value)
     setMeaningDraft(detail.card.meaning ?? "")
     setEditingCase(true)
     setEditor(null)
   }
 
   async function saveCaseEdit() {
-    if (await detail.updateCase(lemmaDraft, meaningDraft)) setEditingCase(false)
+    if (await detail.updateCase(valueDraft, meaningDraft)) setEditingCase(false)
   }
 
   async function confirmCaseDelete() {
@@ -98,8 +98,8 @@ export function useCaseDetailUi(detail: CaseDetailController) {
     setPendingCaseDelete,
     editingCase,
     setEditingCase,
-    lemmaDraft,
-    setLemmaDraft,
+    valueDraft,
+    setValueDraft,
     meaningDraft,
     setMeaningDraft,
     saving,

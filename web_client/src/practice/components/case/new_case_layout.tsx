@@ -1,24 +1,24 @@
 import { TextArea, TextField } from "@/core/components/atoms/text_field"
-import { LanguageFormActions } from "@/practice/components/language/language_form_actions"
+import { PrimaryActionButton } from "@/practice/components/session/primary_action_button"
 import { useEffect, useRef, useState } from "react"
 
 type NewCaseLayoutProps = {
   readonly open: boolean
   readonly saving?: boolean
   readonly onCancel: () => void
-  readonly onCreate: (lemma: string, meaning: string) => void
+  readonly onCreate: (value: string, meaning: string) => void
 }
 
 export function NewCaseLayout({ open, saving, onCancel, onCreate }: NewCaseLayoutProps) {
-  const [lemma, setLemma] = useState("")
+  const [caseValue, setCaseValue] = useState("")
   const [meaning, setMeaning] = useState("")
-  const lemmaRef = useRef<HTMLInputElement>(null)
+  const valueRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!open) return
-    setLemma("")
+    setCaseValue("")
     setMeaning("")
-    lemmaRef.current?.focus()
+    valueRef.current?.focus()
   }, [open])
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export function NewCaseLayout({ open, saving, onCancel, onCreate }: NewCaseLayou
 
   if (!open) return null
 
-  const canSubmit = lemma.trim().length > 0 && !saving
+  const canSubmit = caseValue.trim().length > 0 && !saving
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" role="presentation" onClick={onCancel}>
@@ -41,28 +41,43 @@ export function NewCaseLayout({ open, saving, onCancel, onCreate }: NewCaseLayou
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault()
-          if (canSubmit) onCreate(lemma, meaning)
+          if (canSubmit) onCreate(caseValue, meaning)
         }}
       >
         <p className="text-lg font-semibold text-foreground">New case</p>
-        <p className="mt-1 text-sm text-muted">Lemma and description for this word.</p>
+        <p className="mt-1 text-sm text-muted">Value and description for this word.</p>
         <label className="mt-4 flex flex-col gap-1 text-xs text-muted">
-          Lemma
-          <TextField ref={lemmaRef} value={lemma} disabled={saving} onChange={(e) => setLemma(e.target.value)} placeholder="Word or phrase" />
+          Value
+          <TextField
+            ref={valueRef}
+            value={caseValue}
+            disabled={saving}
+            onChange={(e) => setCaseValue(e.target.value)}
+            placeholder="Word or phrase"
+          />
         </label>
         <label className="mt-3 flex flex-col gap-1 text-xs text-muted">
           Description
-          <TextArea value={meaning} disabled={saving} rows={3} onChange={(e) => setMeaning(e.target.value)} placeholder="Meaning or notes" />
-        </label>
-        <div className="mt-5">
-          <LanguageFormActions
-            saveLabel={saving ? "Adding…" : "Add"}
-            saving={saving}
-            onCancel={onCancel}
-            onSave={() => {
-              if (canSubmit) onCreate(lemma, meaning)
-            }}
+          <TextArea
+            value={meaning}
+            disabled={saving}
+            rows={3}
+            onChange={(e) => setMeaning(e.target.value)}
+            placeholder="Meaning or notes"
           />
+        </label>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={saving}
+            className="rounded-lg border border-grid-line px-3 py-2 text-sm text-foreground hover:bg-tile disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <PrimaryActionButton type="submit" disabled={!canSubmit} className="px-4 py-2 text-sm">
+            {saving ? "Adding…" : "Add"}
+          </PrimaryActionButton>
         </div>
       </form>
     </div>

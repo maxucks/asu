@@ -12,13 +12,10 @@ import {
   practiceCaseIdParamsSchema,
   practiceCreateCaseBodySchema,
   practiceCreateCategoryBodySchema,
-  practiceCreateLanguageBodySchema,
-  practiceLanguageIdParamsSchema,
   practiceNextCardQuerySchema,
   practiceQueueQuerySchema,
   practiceSessionQuerySchema,
   practiceSetCaseCategoriesBodySchema,
-  practiceUpdateLanguageBodySchema,
   practiceUpdateCaseBodySchema,
 } from "@/practice/practice_route_schemas"
 import type { PracticeRepository } from "@/practice/practice_repository"
@@ -33,7 +30,7 @@ export function createPracticeRoutes(repository: PracticeRepository) {
       return error(c, body.error, practiceErrorHttpStatus(body.error.code))
     }
 
-    const result = await repository.createCase(body.value.languageId, body.value.lemmaText, body.value.meaning)
+    const result = await repository.createCase(body.value.languageId, body.value.value, body.value.meaning)
     if (!result.ok) {
       return error(c, result.error, practiceErrorHttpStatus(result.error.code))
     }
@@ -93,46 +90,6 @@ export function createPracticeRoutes(repository: PracticeRepository) {
       return error(c, result.error, practiceErrorHttpStatus(result.error.code))
     }
     return ok(c, { languages: result.value })
-  })
-
-  routes.post("/languages", async (c) => {
-    const body = await parseJsonBody(c, practiceCreateLanguageBodySchema)
-    if (!body.ok) {
-      return error(c, body.error, practiceErrorHttpStatus(body.error.code))
-    }
-    const result = await repository.createLanguage(body.value.name, body.value.icon)
-    if (!result.ok) {
-      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
-    }
-    return created(c, result.value)
-  })
-
-  routes.patch("/languages/:languageId", async (c) => {
-    const params = parseRouteParams(c.req.param(), practiceLanguageIdParamsSchema)
-    if (!params.ok) {
-      return error(c, params.error, practiceErrorHttpStatus(params.error.code))
-    }
-    const body = await parseJsonBody(c, practiceUpdateLanguageBodySchema)
-    if (!body.ok) {
-      return error(c, body.error, practiceErrorHttpStatus(body.error.code))
-    }
-    const result = await repository.updateLanguage(params.value.languageId, body.value)
-    if (!result.ok) {
-      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
-    }
-    return ok(c, result.value)
-  })
-
-  routes.delete("/languages/:languageId", async (c) => {
-    const params = parseRouteParams(c.req.param(), practiceLanguageIdParamsSchema)
-    if (!params.ok) {
-      return error(c, params.error, practiceErrorHttpStatus(params.error.code))
-    }
-    const result = await repository.deleteLanguage(params.value.languageId)
-    if (!result.ok) {
-      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
-    }
-    return noContent(c)
   })
 
   routes.get("/cases", async (c) => {

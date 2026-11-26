@@ -11,13 +11,13 @@ export type CaseLibraryDetailLayoutProps = {
   readonly caseSaving: boolean
   readonly showAdd: boolean
   readonly saving: boolean
-  readonly lemma: string
+  readonly value: string
   readonly meaning: string
   readonly cardMeaning?: string
   readonly rows: readonly AssocRow[]
   readonly addText: ReactNode
   readonly addUrl: ReactNode
-  readonly onLemma: (v: string) => void
+  readonly onValue: (v: string) => void
   readonly onMeaning: (v: string) => void
   readonly onCancelCase: () => void
   readonly onSaveCase: () => void
@@ -30,7 +30,7 @@ export type CaseLibraryDetailLayoutProps = {
 }
 
 export function CaseLibraryDetailLayout(props: CaseLibraryDetailLayoutProps) {
-  const displayTitle = props.editingCase ? props.lemma : props.caseTitle
+  const displayTitle = props.editingCase ? props.value : props.caseTitle
 
   return (
     <section className="scrollbar-hidden flex min-h-0 flex-1 flex-col overflow-y-auto rounded-2xl border border-grid-line bg-card">
@@ -48,10 +48,10 @@ export function CaseLibraryDetailLayout(props: CaseLibraryDetailLayoutProps) {
         />
         {props.editingCase ? (
           <CaseFieldsLayout
-            lemma={props.lemma}
+            value={props.value}
             meaning={props.meaning}
             disabled={props.caseSaving}
-            onLemma={props.onLemma}
+            onValue={props.onValue}
             onMeaning={props.onMeaning}
           />
         ) : props.cardMeaning ? (

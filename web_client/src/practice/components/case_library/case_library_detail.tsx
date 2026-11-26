@@ -96,18 +96,18 @@ export function CaseLibraryDetail({
     <aside className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
         <CaseLibraryDetailLayout
-          caseTitle={detail.card.lemmaText}
+          caseTitle={detail.card.value}
           editingCase={ui.editingCase}
           caseSaving={ui.caseSaving}
           showAdd={showAdd}
           saving={ui.saving}
-          lemma={ui.lemmaDraft}
+          value={ui.valueDraft}
           meaning={ui.meaningDraft}
           cardMeaning={detail.card.meaning ?? undefined}
           rows={rows}
           addText={addText}
           addUrl={addUrl}
-          onLemma={ui.setLemmaDraft}
+          onValue={ui.setValueDraft}
           onMeaning={ui.setMeaningDraft}
           onCancelCase={() => ui.setEditingCase(false)}
           onSaveCase={() => void ui.saveCaseEdit()}
@@ -150,7 +150,7 @@ export function CaseLibraryDetail({
       <ConfirmBox
         open={ui.pendingCaseDelete}
         title="Delete entry?"
-        message={`Remove “${detail.card.lemmaText}” and all its associations?`}
+        message={`Remove “${detail.card.value}” and all its associations?`}
         confirmLabel="Delete"
         busy={detail.caseBusy === "delete"}
         onCancel={() => ui.setPendingCaseDelete(false)}

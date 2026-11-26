@@ -4,7 +4,7 @@ Read this first when continuing work in a new session. Authoritative rules: [ARC
 
 ## Product
 
-Associative vocabulary app (Anki-like practice + user-defined associations). Domain: **case** (lemma + **meaning** prose, not a gloss), **association**, **study record**, **language**. Grades: `hard` | `medium` | `easy`. Review status: `new` | `learning` | `repeating`.
+Associative vocabulary app (Anki-like practice + user-defined associations). Domain: **case** (**value** + **meaning** prose, not a gloss), **association**, **study record**, **language**. Grades: `hard` | `medium` | `easy`. Review status: `new` | `learning` | `repeating`.
 
 ## Repo layout
 

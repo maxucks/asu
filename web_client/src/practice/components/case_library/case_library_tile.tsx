@@ -21,7 +21,7 @@ export function CaseLibraryTile({ card, selected, onSelect }: CaseLibraryTilePro
       className={`flex aspect-[4/5] w-full flex-col overflow-hidden rounded-2xl border text-left transition ${selected ? "border-accent ring-1 ring-accent/40" : "border-grid-line hover:border-accent/30"}`}
     >
       <div className="flex h-[60%] min-h-0 flex-col justify-center gap-1 bg-card px-3 py-2">
-        <p className="truncate text-sm font-semibold text-foreground">{card.lemmaText}</p>
+        <p className="truncate text-sm font-semibold text-foreground">{card.value}</p>
         <p className="line-clamp-2 text-xs leading-snug text-muted">{card.meaning?.trim() || "No description"}</p>
         {card.categories.length > 0 ? (
           <div className="mt-0.5 w-full min-w-0">

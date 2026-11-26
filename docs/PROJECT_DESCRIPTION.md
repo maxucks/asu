@@ -11,7 +11,7 @@
 |------|------|
 | **Language** | Top partition; no collections in this stage |
 | **Case** | One learnable unit = **one SRS card** |
-| **Lemma** | Text on the case only — **no lemma table** |
+| **Case value** | Text on the case (`cases.value`) — **no separate lemma table** |
 | **Example** | Sample sentence(s) — not “context” / “showcase” |
 | **Association** | Memory cue (`kind`, `content_ref`); many per case |
 | **Relation** | Directed link between cases + kind (synonym, …) |

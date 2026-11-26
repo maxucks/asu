@@ -33,14 +33,14 @@ async function seedJapaneseSpatial() {
   let updated = 0
 
   for (let i = 0; i < parsed.length; i++) {
-    const { lemmaText, meaning } = parsed[i]
+    const { value, meaning } = parsed[i]
     const id = `${CASE_ID_PREFIX}${String(i + 1).padStart(3, "0")}`
 
     const existing = await db.select({ id: cases.id }).from(cases).where(eq(cases.id, id)).limit(1)
     if (existing.length > 0) {
       await db
         .update(cases)
-        .set({ lemmaText, meaning, languageId: JAPANESE_LANGUAGE_ID })
+        .set({ value, meaning, languageId: JAPANESE_LANGUAGE_ID })
         .where(eq(cases.id, id))
       updated++
       continue
@@ -49,7 +49,7 @@ async function seedJapaneseSpatial() {
     await db.insert(cases).values({
       id,
       languageId: JAPANESE_LANGUAGE_ID,
-      lemmaText,
+      value,
       meaning,
     })
 

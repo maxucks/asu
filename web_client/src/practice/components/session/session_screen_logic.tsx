@@ -264,15 +264,15 @@ export function SessionScreenLogic() {
         caseSaving={ui.caseSaving}
         showAdd={onFront && ui.editor === null && !ui.editingCase}
         saving={ui.saving}
-        lemma={ui.lemmaDraft}
+        value={ui.valueDraft}
         meaning={ui.meaningDraft}
         cardMeaning={card?.meaning ?? undefined}
-        revealLemma={card?.lemmaText}
-        showLemma={!onFront && card !== null && !ui.editingCase}
+        revealValue={card?.value}
+        showValue={!onFront && card !== null && !ui.editingCase}
         rows={rows}
         addText={addText}
         addUrl={addUrl}
-        onLemma={ui.setLemmaDraft}
+        onValue={ui.setValueDraft}
         onMeaning={ui.setMeaningDraft}
         onCancelCase={() => ui.setEditingCase(false)}
         onSaveCase={() => void ui.saveCaseEdit()}
@@ -317,7 +317,7 @@ export function SessionScreenLogic() {
             }}
             caseDelete={{
               open: ui.pendingCaseDelete,
-              message: card ? `Remove “${card.lemmaText}” and all its associations from your vocabulary?` : "",
+              message: card ? `Remove “${card.value}” and all its associations from your vocabulary?` : "",
               busy: card !== null && session.deletingCaseId === card.id,
               onCancel: () => ui.setPendingCaseDelete(false),
               onConfirm: () => void ui.confirmCaseDelete(),

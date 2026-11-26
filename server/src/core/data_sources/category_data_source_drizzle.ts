@@ -1,3 +1,4 @@
+import { newEntityId } from "@/core/entity_id"
 import { db } from "@/core/db"
 import { caseCategories, cases, categories } from "@/db/schema"
 import { and, asc, count, eq, inArray } from "drizzle-orm"
@@ -57,7 +58,7 @@ export class DrizzleCategoryDataSource {
       if (dto) return dto
     }
 
-    const id = `cat-${crypto.randomUUID()}`
+    const id = newEntityId()
     await db.insert(categories).values({ id, languageId, name })
 
     const counts = await this.listCategoryDtos(languageId)

@@ -36,7 +36,7 @@ export class Association implements PracticeAssociation {
   }
 
   static textStub(caseId: string, text: string, sortOrder: number): Association {
-    return new Association(`${caseId}-assoc-${crypto.randomUUID()}`, "text", text, null, sortOrder, new Date(), false)
+    return new Association(crypto.randomUUID(), "text", text, null, sortOrder, new Date(), false)
   }
 
   static kindStub(caseId: string, kind: AssociationKind, sortOrder: number): Association {
@@ -51,7 +51,7 @@ export class Association implements PracticeAssociation {
     hiddenFromPractice = false,
   ): Association {
     return new Association(
-      `${caseId}-assoc-${crypto.randomUUID()}`,
+      crypto.randomUUID(),
       kind,
       contentRef,
       null,
@@ -78,7 +78,7 @@ export class PracticeCard {
   constructor(
     readonly id: string,
     readonly languageName: string,
-    readonly lemmaText: string,
+    readonly value: string,
     readonly meaning: string | null,
     readonly associations: readonly Association[],
     readonly categories: readonly CaseCategoryRefDto[],
@@ -88,7 +88,7 @@ export class PracticeCard {
     return new PracticeCard(
       dto.id,
       dto.languageName,
-      dto.lemmaText,
+      dto.value,
       dto.meaning,
       dto.associations.map((item) => Association.fromDto(item)),
       dto.categories ?? [],
@@ -96,7 +96,7 @@ export class PracticeCard {
   }
 }
 
-export function parseCaseLemma(raw: string): string | null {
+export function parseCaseValue(raw: string): string | null {
   const text = raw.trim()
   return text.length > 0 ? text : null
 }

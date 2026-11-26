@@ -9,13 +9,13 @@ import {
 import {
   PracticeErrAssociationEmptyText,
   PracticeErrAssociationInvalidImageUrl,
-  PracticeErrCaseLemmaEmpty,
+  PracticeErrCaseValueEmpty,
   type PracticeError,
 } from "@/practice/practice_errors"
 import { PracticeCard } from "@/practice/practice_model"
 import type { PracticeGradeDto, PracticeCardDto } from "@/practice/practice_repository"
 import { PracticeGrades } from "@/practice/practice_repository"
-import { parseCaseLemma, parseCaseMeaning } from "@/practice/practice_model"
+import { parseCaseValue, parseCaseMeaning } from "@/practice/practice_model"
 import type { PracticeRepository } from "@/practice/practice_repository"
 import {
   createPracticeSessionViewStateAfterGrade,
@@ -389,15 +389,15 @@ export function usePracticeSessionController(
   const reloadPracticeSession = useCallback(async () => bootstrapSession(), [bootstrapSession])
 
   const createVocabularyCase = useCallback(
-    async (lemma: string, meaning: string): Promise<boolean> => {
+    async (caseValue: string, meaning: string): Promise<boolean> => {
       setVocabularyBusyCaseId("create")
-      const lemmaText = parseCaseLemma(lemma)
-      if (lemmaText === null) {
-        setState(createPracticeSessionViewStateError(PracticeErrCaseLemmaEmpty))
+      const value = parseCaseValue(caseValue)
+      if (value === null) {
+        setState(createPracticeSessionViewStateError(PracticeErrCaseValueEmpty))
         setVocabularyBusyCaseId(null)
         return false
       }
-      const result = await practiceRepository.createCase(languageId, lemmaText, parseCaseMeaning(meaning))
+      const result = await practiceRepository.createCase(languageId, value, parseCaseMeaning(meaning))
       if (!result.ok) {
         setState(createPracticeSessionViewStateError(result.error))
         setVocabularyBusyCaseId(null)
@@ -411,16 +411,16 @@ export function usePracticeSessionController(
   )
 
   const updateVocabularyCase = useCallback(
-    async (caseId: string, lemma: string, meaning: string): Promise<boolean> => {
+    async (caseId: string, caseValue: string, meaning: string): Promise<boolean> => {
       setVocabularyBusyCaseId(caseId)
-      const lemmaText = parseCaseLemma(lemma)
-      if (lemmaText === null) {
-        setState(createPracticeSessionViewStateError(PracticeErrCaseLemmaEmpty))
+      const value = parseCaseValue(caseValue)
+      if (value === null) {
+        setState(createPracticeSessionViewStateError(PracticeErrCaseValueEmpty))
         setVocabularyBusyCaseId(null)
         return false
       }
       const result = await practiceRepository.updateCase(caseId, {
-        lemmaText,
+        value,
         meaning: parseCaseMeaning(meaning),
       })
       if (!result.ok) {

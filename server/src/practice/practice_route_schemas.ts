@@ -1,4 +1,3 @@
-import { singleEmoji } from "@/core/single_emoji"
 import { DEFAULT_ASSOCIATION_TILE_COLOR_ID, isAssociationTileColorId } from "@/practice/association_tile_colors"
 import { PracticeErrorMessages } from "@/practice/practice_errors"
 import { PracticeGrades } from "@/practice/practice_repository"
@@ -77,26 +76,12 @@ export const practiceGradeBodySchema = z.object({
   grade: z.enum(PracticeGrades),
 })
 
-const caseLemmaField = z
+const caseValueField = z
   .string()
   .transform((raw) => raw.trim())
   .refine((value) => value.length > 0, {
-    message: PracticeErrorMessages.CaseLemmaEmpty,
+    message: PracticeErrorMessages.CaseValueEmpty,
   })
-
-const languageIconField = z
-  .string()
-  .transform((raw) => singleEmoji(raw))
-  .refine((value) => value.length > 0, { message: "Pick an icon for the language." })
-
-const languageNameField = z
-  .string()
-  .transform((raw) => raw.trim())
-  .refine((value) => value.length > 0, { message: "Language name cannot be empty." })
-
-export const practiceLanguageIdParamsSchema = z.object({
-  languageId: routeId,
-})
 
 export const practiceQueueQuerySchema = z.object({
   languageId: routeId,
@@ -128,23 +113,9 @@ export const practiceSetCaseCategoriesBodySchema = z.object({
   categoryIds: z.array(routeId),
 })
 
-export const practiceCreateLanguageBodySchema = z.object({
-  name: languageNameField,
-  icon: languageIconField,
-})
-
-export const practiceUpdateLanguageBodySchema = z
-  .object({
-    name: languageNameField.optional(),
-    icon: languageIconField.optional(),
-  })
-  .refine((value) => value.name !== undefined || value.icon !== undefined, {
-    message: "Provide name or icon to update.",
-  })
-
 export const practiceCreateCaseBodySchema = z.object({
   languageId: routeId,
-  lemmaText: caseLemmaField,
+  value: caseValueField,
   meaning: z
     .string()
     .optional()
@@ -157,7 +128,7 @@ export const practiceCreateCaseBodySchema = z.object({
 
 export const practiceUpdateCaseBodySchema = z
   .object({
-    lemmaText: caseLemmaField.optional(),
+    value: caseValueField.optional(),
     meaning: z
       .string()
       .nullable()
@@ -169,6 +140,6 @@ export const practiceUpdateCaseBodySchema = z
         return text.length > 0 ? text : null
       }),
   })
-  .refine((value) => value.lemmaText !== undefined || value.meaning !== undefined, {
-    message: "Provide lemma or meaning to update.",
+  .refine((value) => value.value !== undefined || value.meaning !== undefined, {
+    message: "Provide value or meaning to update.",
   })

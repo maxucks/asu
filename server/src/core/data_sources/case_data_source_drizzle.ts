@@ -1,4 +1,5 @@
 import { DEFAULT_LANGUAGE_ID } from "@/core/data_sources/language_data_source_drizzle"
+import { newEntityId } from "@/core/entity_id"
 import { asc, eq } from "drizzle-orm"
 
 export const AssociationKinds = ["text", "image", "audio", "sketch", "video"] as const
@@ -23,7 +24,7 @@ export type CaseCategoryRefDto = {
 export type CaseDto = {
   readonly id: string
   readonly languageName: string
-  readonly lemmaText: string
+  readonly value: string
   readonly meaning: string | null
   readonly associations: readonly AssociationDto[]
   readonly categories: readonly CaseCategoryRefDto[]
@@ -50,7 +51,7 @@ export class DrizzleCaseDataSource {
   const rows = await db
     .select({
       caseId: cases.id,
-      lemmaText: cases.lemmaText,
+      value: cases.value,
       meaning: cases.meaning,
       languageName: languages.name,
     })
@@ -75,7 +76,7 @@ export class DrizzleCaseDataSource {
   return {
     id: base.caseId,
     languageName: base.languageName,
-    lemmaText: base.lemmaText,
+    value: base.value,
     meaning: base.meaning,
     associations: assocRows.map(mapAssociationRow),
     categories: categoryMap.get(base.caseId) ?? [],
@@ -87,7 +88,7 @@ export class DrizzleCaseDataSource {
       .select({ id: cases.id })
       .from(cases)
       .where(eq(cases.languageId, languageId))
-      .orderBy(asc(cases.lemmaText))
+      .orderBy(asc(cases.value))
 
     const loaded: CaseDto[] = []
     for (const row of rows) {
@@ -96,12 +97,12 @@ export class DrizzleCaseDataSource {
     return loaded
   }
 
-  async createCaseDto(lemmaText: string, meaning: string | null, languageId: string = DEFAULT_LANGUAGE_ID): Promise<CaseDto> {
-    const id = `case-${crypto.randomUUID()}`
+  async createCaseDto(value: string, meaning: string | null, languageId: string = DEFAULT_LANGUAGE_ID): Promise<CaseDto> {
+    const id = newEntityId()
     await db.insert(cases).values({
       id,
       languageId,
-      lemmaText,
+      value,
       meaning,
     })
     return this.loadCaseDto(id)
@@ -109,10 +110,10 @@ export class DrizzleCaseDataSource {
 
   async updateCaseDto(
     caseId: string,
-    patch: { readonly lemmaText?: string; readonly meaning?: string | null },
+    patch: { readonly value?: string; readonly meaning?: string | null },
   ): Promise<CaseDto> {
-    const updates: { lemmaText?: string; meaning?: string | null } = {}
-    if (patch.lemmaText !== undefined) updates.lemmaText = patch.lemmaText
+    const updates: { value?: string; meaning?: string | null } = {}
+    if (patch.value !== undefined) updates.value = patch.value
     if (patch.meaning !== undefined) updates.meaning = patch.meaning
 
     if (Object.keys(updates).length > 0) {

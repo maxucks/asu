@@ -13,7 +13,7 @@ export const cases = sqliteTable(
     languageId: text("language_id")
       .notNull()
       .references(() => languages.id, { onDelete: "cascade" }),
-    lemmaText: text("lemma_text").notNull(),
+    value: text("value").notNull(),
     meaning: text("meaning"),
   },
   (table) => [index("cases_language_id_idx").on(table.languageId)],

@@ -7,7 +7,6 @@ export const PracticeErrorCodes = {
   AssociationSaveFailed: "practice_association_save_failed",
   AssociationNotFound: "practice_association_not_found",
   LanguageNotFound: "practice_language_not_found",
-  LanguageHasCases: "practice_language_has_cases",
   LanguageInvalid: "practice_language_invalid",
 } as const;
 
@@ -21,8 +20,7 @@ export const PracticeErrorMessages = {
   QueueEmpty: "Nothing to review in the queue.",
   AssociationSaveFailed: "Could not save association.",
   PracticeDataFailed: "Practice data failed.",
-  CaseLemmaEmpty: "Word / lemma cannot be empty.",
-  LanguageHasCases: "Delete all vocabulary entries in this language first.",
+  CaseValueEmpty: "Case value cannot be empty.",
 } as const;
 
 export class PracticeError extends AppError<PracticeErrorCode> {
@@ -67,9 +65,9 @@ export const PracticeErrPracticeDataFailed = new PracticeError(
   PracticeErrorMessages.PracticeDataFailed,
 );
 
-export const PracticeErrCaseLemmaEmpty = new PracticeError(
+export const PracticeErrCaseValueEmpty = new PracticeError(
   PracticeErrorCodes.AssociationSaveFailed,
-  PracticeErrorMessages.CaseLemmaEmpty,
+  PracticeErrorMessages.CaseValueEmpty,
 );
 
 export function practiceCardNotFoundError(message: string): PracticeError {

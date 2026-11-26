@@ -12,15 +12,15 @@ export type CardLayoutProps = {
   readonly caseSaving: boolean
   readonly showAdd: boolean
   readonly saving: boolean
-  readonly lemma: string
+  readonly value: string
   readonly meaning: string
   readonly cardMeaning?: string
-  readonly revealLemma?: string
-  readonly showLemma: boolean
+  readonly revealValue?: string
+  readonly showValue: boolean
   readonly rows: readonly AssocRow[]
   readonly addText: ReactNode
   readonly addUrl: ReactNode
-  readonly onLemma: (v: string) => void
+  readonly onValue: (v: string) => void
   readonly onMeaning: (v: string) => void
   readonly onCancelCase: () => void
   readonly onSaveCase: () => void
@@ -49,10 +49,10 @@ export function CardLayout(props: CardLayoutProps) {
         />
         {props.editingCase ? (
           <CaseFieldsLayout
-            lemma={props.lemma}
+            value={props.value}
             meaning={props.meaning}
             disabled={props.caseSaving}
-            onLemma={props.onLemma}
+            onValue={props.onValue}
             onMeaning={props.onMeaning}
           />
         ) : props.cardMeaning ? (
@@ -75,9 +75,9 @@ export function CardLayout(props: CardLayoutProps) {
         onReorder={props.onReorder}
       />
 
-      {props.showLemma && props.revealLemma ? (
+      {props.showValue && props.revealValue ? (
         <div className="border-t border-grid-line bg-accent-soft/50 px-5 py-4">
-          <p className="text-2xl font-semibold tracking-tight text-accent">{props.revealLemma}</p>
+          <p className="text-2xl font-semibold tracking-tight text-accent">{props.revealValue}</p>
         </div>
       ) : null}
     </section>

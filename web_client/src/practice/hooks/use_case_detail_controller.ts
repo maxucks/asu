@@ -6,7 +6,7 @@ import {
   PracticeErrAssociationInvalidImageUrl,
   type PracticeError,
 } from "@/practice/practice_errors"
-import { parseCaseLemma, parseCaseMeaning } from "@/practice/practice_model"
+import { parseCaseValue, parseCaseMeaning } from "@/practice/practice_model"
 import type { PracticeRepository } from "@/practice/practice_repository"
 import {
   parseAssociationImageUrl,
@@ -63,12 +63,12 @@ export function useCaseDetailController(
   )
 
   const updateCase = useCallback(
-    async (lemma: string, meaning: string): Promise<boolean> => {
-      const lemmaText = parseCaseLemma(lemma)
-      if (lemmaText === null) return false
+    async (caseValue: string, meaning: string): Promise<boolean> => {
+      const value = parseCaseValue(caseValue)
+      if (value === null) return false
       setCaseBusy("update")
       const okResult = await runMutation(() =>
-        repo.updateCase(card.id, { lemmaText, meaning: parseCaseMeaning(meaning) }),
+        repo.updateCase(card.id, { value, meaning: parseCaseMeaning(meaning) }),
       )
       setCaseBusy(false)
       return okResult

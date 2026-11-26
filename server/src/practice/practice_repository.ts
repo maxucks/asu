@@ -1,4 +1,5 @@
 import { err, ok } from "@/core/app_errors"
+import { newEntityId } from "@/core/entity_id"
 import type { Result } from "@/core/app_errors"
 import { DrizzleCaseDataSource } from "@/core/data_sources/case_data_source_drizzle"
 import type { LanguageDto } from "@/core/data_sources/language_data_source_drizzle"
@@ -21,7 +22,7 @@ export type CaseCategoryRefDto = {
 export type PracticeCardDto = {
   readonly id: string
   readonly languageName: string
-  readonly lemmaText: string
+  readonly value: string
   readonly meaning: string | null
   readonly associations: readonly AssociationDto[]
   readonly categories: readonly CaseCategoryRefDto[]
@@ -88,34 +89,6 @@ export class PracticeRepository {
     }
   }
 
-  async createLanguage(name: string, icon: string): Promise<Result<LanguageDto, PracticeError>> {
-    try {
-      return ok(await this.languageDataSource.createLanguageDto(name, icon))
-    } catch (thrown) {
-      return err(practiceLanguageErrorFromThrown(thrown))
-    }
-  }
-
-  async updateLanguage(
-    languageId: string,
-    patch: { readonly name?: string; readonly icon?: string },
-  ): Promise<Result<LanguageDto, PracticeError>> {
-    try {
-      return ok(await this.languageDataSource.updateLanguageDto(languageId, patch))
-    } catch (thrown) {
-      return err(practiceLanguageErrorFromThrown(thrown))
-    }
-  }
-
-  async deleteLanguage(languageId: string): Promise<Result<void, PracticeError>> {
-    try {
-      await this.languageDataSource.deleteLanguageDto(languageId)
-      return ok(undefined)
-    } catch (thrown) {
-      return err(practiceLanguageErrorFromThrown(thrown))
-    }
-  }
-
   async appendTextAssociation(
     caseId: string,
     text: string,
@@ -124,7 +97,7 @@ export class PracticeRepository {
     try {
       const existing = await this.caseDataSource.getCaseDtoById(caseId)
       const association: AssociationDto = {
-        id: `assoc-${crypto.randomUUID()}`,
+        id: newEntityId(),
         kind: "text",
         contentRef: text,
         tileColor,
@@ -146,7 +119,7 @@ export class PracticeRepository {
     try {
       const existing = await this.caseDataSource.getCaseDtoById(caseId)
       const association: AssociationDto = {
-        id: `assoc-${crypto.randomUUID()}`,
+        id: newEntityId(),
         kind: "image",
         contentRef: url,
         tileColor: null,
@@ -397,11 +370,11 @@ export class PracticeRepository {
 
   async createCase(
     languageId: string,
-    lemmaText: string,
+    value: string,
     meaning: string | null,
   ): Promise<Result<PracticeCardDto, PracticeError>> {
     try {
-      const caseDto = await this.caseDataSource.createCaseDto(lemmaText, meaning, languageId)
+      const caseDto = await this.caseDataSource.createCaseDto(value, meaning, languageId)
       await this.studyRecordDataSource.insertStudyRecordDto(createInitialStudyRecord(caseDto.id))
       return ok(PracticeRepository.caseDtoToPracticeCard(caseDto))
     } catch (thrown) {
@@ -411,7 +384,7 @@ export class PracticeRepository {
 
   async updateCase(
     caseId: string,
-    patch: { readonly lemmaText?: string; readonly meaning?: string | null },
+    patch: { readonly value?: string; readonly meaning?: string | null },
   ): Promise<Result<PracticeCardDto, PracticeError>> {
     try {
       const caseDto = await this.caseDataSource.updateCaseDto(caseId, patch)
@@ -440,7 +413,7 @@ export class PracticeRepository {
     return {
       id: caseDto.id,
       languageName: caseDto.languageName,
-      lemmaText: caseDto.lemmaText,
+      value: caseDto.value,
       meaning: caseDto.meaning,
       associations: caseDto.associations,
       categories: caseDto.categories,
