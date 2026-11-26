@@ -14,6 +14,7 @@ import type { HttpLanguageDataSource } from "@/core/data_sources/http_language_d
 import type { LanguageDto } from "@/core/data_sources/http_language_data_source";
 import type { CaseRepresentationWrite } from "@/core/data_sources/http_case_data_source";
 import type { HttpRepresentationTypeDataSource } from "@/core/data_sources/http_representation_type_data_source";
+import type { HttpNoteDataSource, NoteDto } from "@/core/data_sources/http_note_data_source";
 import type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source";
 import {
   practiceAssociationErrorFromThrown,
@@ -37,6 +38,8 @@ export type {
   CaseRepresentationWrite,
 } from "@/core/data_sources/http_case_data_source";
 export type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source";
+export type { NoteDto } from "@/core/data_sources/http_note_data_source";
+export type { CaseNoteRefDto } from "@/core/data_sources/http_case_data_source";
 
 export const PracticeGrades = ["hard", "medium", "easy"] as const;
 
@@ -48,6 +51,7 @@ export class PracticeRepository {
     private readonly languageDataSource: HttpLanguageDataSource,
     private readonly categoryDataSource: HttpCategoryDataSource,
     private readonly representationTypeDataSource: HttpRepresentationTypeDataSource,
+    private readonly noteDataSource: HttpNoteDataSource,
   ) {}
 
   async listRepresentationTypes(
@@ -272,6 +276,79 @@ export class PracticeRepository {
     }
   }
 
+  async listNotes(languageId: string): Promise<Result<readonly NoteDto[], PracticeError>> {
+    try {
+      return ok(await this.noteDataSource.listNotes(languageId));
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
+
+  async createNote(
+    languageId: string,
+    name: string,
+    content: string,
+  ): Promise<Result<NoteDto, PracticeError>> {
+    try {
+      return ok(await this.noteDataSource.createNote(languageId, name, content));
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
+
+  async updateNote(
+    noteId: string,
+    patch: { readonly name?: string; readonly content?: string },
+  ): Promise<Result<NoteDto, PracticeError>> {
+    try {
+      return ok(await this.noteDataSource.updateNote(noteId, patch));
+    } catch (thrown) {
+      if (thrown instanceof Error && thrown.message.startsWith("Record not found")) {
+        return err(practiceCardNotFoundError(thrown.message));
+      }
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
+
+  async deleteNote(noteId: string): Promise<Result<void, PracticeError>> {
+    try {
+      await this.noteDataSource.deleteNote(noteId);
+      return ok(undefined);
+    } catch (thrown) {
+      if (thrown instanceof Error && thrown.message.startsWith("Record not found")) {
+        return err(practiceCardNotFoundError(thrown.message));
+      }
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
+
+  async linkCaseNote(
+    caseId: string,
+    link: { readonly noteId: string } | { readonly name: string; readonly content: string },
+  ): Promise<Result<PracticeCardDto, PracticeError>> {
+    try {
+      const card = await this.noteDataSource.linkNoteToCase(caseId, link);
+      return ok(PracticeRepository.caseDtoToPracticeCard(card));
+    } catch (thrown) {
+      if (thrown instanceof Error && thrown.message.startsWith("Record not found")) {
+        return err(practiceCardNotFoundError(thrown.message));
+      }
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
+
+  async unlinkCaseNote(caseId: string, noteId: string): Promise<Result<PracticeCardDto, PracticeError>> {
+    try {
+      const card = await this.noteDataSource.unlinkNoteFromCase(caseId, noteId);
+      return ok(PracticeRepository.caseDtoToPracticeCard(card));
+    } catch (thrown) {
+      if (thrown instanceof Error && thrown.message.startsWith("Record not found")) {
+        return err(practiceCardNotFoundError(thrown.message));
+      }
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
+
   async getQueue(languageId: string): Promise<Result<PracticeQueueDto, PracticeError>> {
     try {
       const queue = await this.caseDataSource.fetchPracticeQueue(languageId);
@@ -358,6 +435,7 @@ export class PracticeRepository {
       associations: caseDto.associations,
       categories: caseDto.categories ?? [],
       representations: caseDto.representations ?? [],
+      notes: caseDto.notes ?? [],
     };
   }
 

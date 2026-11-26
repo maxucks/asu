@@ -17,6 +17,11 @@ import {
   practiceSessionQuerySchema,
   practiceSetCaseCategoriesBodySchema,
   practiceUpdateCaseBodySchema,
+  practiceCreateNoteBodySchema,
+  practiceUpdateNoteBodySchema,
+  practiceNoteIdParamsSchema,
+  practiceCaseNoteParamsSchema,
+  practiceLinkCaseNoteBodySchema,
 } from "@/practice/practice_route_schemas"
 import type { PracticeRepository } from "@/practice/practice_repository"
 import { Hono } from "hono"
@@ -332,6 +337,86 @@ export function createPracticeRoutes(repository: PracticeRepository) {
     }
 
     const result = await repository.deleteAssociation(params.value.caseId, params.value.associationId)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return ok(c, result.value)
+  })
+
+  routes.get("/notes", async (c) => {
+    const query = parseQuery(c.req.query(), practiceQueueQuerySchema)
+    if (!query.ok) {
+      return error(c, query.error, practiceErrorHttpStatus(query.error.code))
+    }
+    const result = await repository.listNotes(query.value.languageId)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return ok(c, { notes: result.value })
+  })
+
+  routes.post("/notes", async (c) => {
+    const body = await parseJsonBody(c, practiceCreateNoteBodySchema)
+    if (!body.ok) {
+      return error(c, body.error, practiceErrorHttpStatus(body.error.code))
+    }
+    const result = await repository.createNote(body.value.languageId, body.value.name, body.value.content)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return created(c, result.value)
+  })
+
+  routes.patch("/notes/:noteId", async (c) => {
+    const params = parseRouteParams(c.req.param(), practiceNoteIdParamsSchema)
+    if (!params.ok) {
+      return error(c, params.error, practiceErrorHttpStatus(params.error.code))
+    }
+    const body = await parseJsonBody(c, practiceUpdateNoteBodySchema)
+    if (!body.ok) {
+      return error(c, body.error, practiceErrorHttpStatus(body.error.code))
+    }
+    const result = await repository.updateNote(params.value.noteId, body.value)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return ok(c, result.value)
+  })
+
+  routes.delete("/notes/:noteId", async (c) => {
+    const params = parseRouteParams(c.req.param(), practiceNoteIdParamsSchema)
+    if (!params.ok) {
+      return error(c, params.error, practiceErrorHttpStatus(params.error.code))
+    }
+    const result = await repository.deleteNote(params.value.noteId)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return noContent(c)
+  })
+
+  routes.post("/cases/:caseId/notes", async (c) => {
+    const params = parseRouteParams(c.req.param(), practiceCaseIdParamsSchema)
+    if (!params.ok) {
+      return error(c, params.error, practiceErrorHttpStatus(params.error.code))
+    }
+    const body = await parseJsonBody(c, practiceLinkCaseNoteBodySchema)
+    if (!body.ok) {
+      return error(c, body.error, practiceErrorHttpStatus(body.error.code))
+    }
+    const result = await repository.linkCaseNote(params.value.caseId, body.value)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return ok(c, result.value)
+  })
+
+  routes.delete("/cases/:caseId/notes/:noteId", async (c) => {
+    const params = parseRouteParams(c.req.param(), practiceCaseNoteParamsSchema)
+    if (!params.ok) {
+      return error(c, params.error, practiceErrorHttpStatus(params.error.code))
+    }
+    const result = await repository.unlinkCaseNote(params.value.caseId, params.value.noteId)
     if (!result.ok) {
       return error(c, result.error, practiceErrorHttpStatus(result.error.code))
     }

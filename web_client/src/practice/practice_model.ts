@@ -1,4 +1,9 @@
-import type { AssociationDto, AssociationKind, CaseCategoryRefDto } from "@/core/data_sources/http_case_data_source"
+import type {
+  AssociationDto,
+  AssociationKind,
+  CaseCategoryRefDto,
+  CaseNoteRefDto,
+} from "@/core/data_sources/http_case_data_source"
 import type { CaseRepresentationDto } from "@/core/data_sources/http_case_data_source"
 import type { PracticeCardDto } from "@/practice/practice_repository"
 
@@ -84,6 +89,7 @@ export class PracticeCard {
     readonly associations: readonly Association[],
     readonly categories: readonly CaseCategoryRefDto[],
     readonly representations: readonly CaseRepresentationDto[],
+    readonly notes: readonly CaseNoteRefDto[],
   ) {}
 
   static fromDto(dto: PracticeCardDto): PracticeCard {
@@ -95,6 +101,7 @@ export class PracticeCard {
       dto.associations.map((item) => Association.fromDto(item)),
       dto.categories ?? [],
       dto.representations ?? [],
+      dto.notes ?? [],
     )
   }
 }

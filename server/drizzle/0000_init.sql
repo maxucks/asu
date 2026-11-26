@@ -70,6 +70,25 @@ CREATE TABLE IF NOT EXISTS `case_representations` (
 CREATE UNIQUE INDEX IF NOT EXISTS `case_representations_case_type_uq` ON `case_representations` (`case_id`,`representation_type_id`);
 CREATE INDEX IF NOT EXISTS `case_representations_case_id_idx` ON `case_representations` (`case_id`);
 
+CREATE TABLE IF NOT EXISTS `notes` (
+	`id` text PRIMARY KEY NOT NULL,
+	`language_id` text NOT NULL,
+	`name` text NOT NULL,
+	`content` text NOT NULL,
+	FOREIGN KEY (`language_id`) REFERENCES `languages`(`id`) ON UPDATE no action ON DELETE cascade
+);
+CREATE INDEX IF NOT EXISTS `notes_language_id_idx` ON `notes` (`language_id`);
+
+CREATE TABLE IF NOT EXISTS `case_notes` (
+	`case_id` text NOT NULL,
+	`note_id` text NOT NULL,
+	PRIMARY KEY(`case_id`,`note_id`),
+	FOREIGN KEY (`case_id`) REFERENCES `cases`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`note_id`) REFERENCES `notes`(`id`) ON UPDATE no action ON DELETE cascade
+);
+CREATE INDEX IF NOT EXISTS `case_notes_case_id_idx` ON `case_notes` (`case_id`);
+CREATE INDEX IF NOT EXISTS `case_notes_note_id_idx` ON `case_notes` (`note_id`);
+
 CREATE TABLE IF NOT EXISTS `study_records` (
 	`case_id` text PRIMARY KEY NOT NULL,
 	`review_status` text NOT NULL,

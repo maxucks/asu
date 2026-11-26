@@ -69,11 +69,11 @@ export function HeaderLayout({
           <button
             type="button"
             onClick={onOpenCaseLibrary}
-            aria-label="Open vocabulary library"
-            title="Vocabulary"
+            aria-label="Open library"
+            title="Library"
             className="rounded-lg border border-grid-line bg-tile px-2.5 py-2 text-xs font-semibold uppercase tracking-wide text-foreground transition hover:border-accent/40 hover:text-accent"
           >
-            Words
+            Library
           </button>
         ) : null}
         <span className="tabular-nums text-muted">{progress}</span>

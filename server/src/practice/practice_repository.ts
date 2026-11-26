@@ -19,10 +19,20 @@ import type {
   DrizzleRepresentationTypeDataSource,
   RepresentationTypeDto,
 } from "@/core/data_sources/representation_type_data_source_drizzle"
+import type {
+  DrizzleNoteDataSource,
+  NoteDto,
+} from "@/core/data_sources/note_data_source_drizzle"
 
 export type CaseCategoryRefDto = {
   readonly id: string
   readonly name: string
+}
+
+export type CaseNoteRefDto = {
+  readonly id: string
+  readonly name: string
+  readonly content: string
 }
 
 export type PracticeCardDto = {
@@ -33,7 +43,10 @@ export type PracticeCardDto = {
   readonly associations: readonly AssociationDto[]
   readonly categories: readonly CaseCategoryRefDto[]
   readonly representations: readonly CaseRepresentationDto[]
+  readonly notes: readonly CaseNoteRefDto[]
 }
+
+export type { NoteDto }
 
 export type { CaseRepresentationDto, RepresentationTypeDto }
 
@@ -73,6 +86,7 @@ export class PracticeRepository {
     private readonly categoryDataSource: DrizzleCategoryDataSource,
     private readonly languageDataSource: DrizzleLanguageDataSource,
     private readonly representationTypeDataSource: DrizzleRepresentationTypeDataSource,
+    private readonly noteDataSource: DrizzleNoteDataSource,
   ) {}
 
   async listRepresentationTypes(
@@ -287,6 +301,97 @@ export class PracticeRepository {
     }
   }
 
+  async listNotes(languageId: string): Promise<Result<readonly NoteDto[], PracticeError>> {
+    try {
+      return ok(await this.noteDataSource.listNoteDtos(languageId))
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
+  async createNote(
+    languageId: string,
+    name: string,
+    content: string,
+  ): Promise<Result<NoteDto, PracticeError>> {
+    try {
+      return ok(await this.noteDataSource.createNoteDto(languageId, name, content))
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
+  async updateNote(
+    noteId: string,
+    patch: { readonly name?: string; readonly content?: string },
+  ): Promise<Result<NoteDto, PracticeError>> {
+    try {
+      return ok(await this.noteDataSource.updateNoteDto(noteId, patch))
+    } catch (thrown) {
+      if (thrown instanceof Error && thrown.message.startsWith("Record not found")) {
+        return err(practiceCardNotFoundError(thrown.message))
+      }
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
+  async deleteNote(noteId: string): Promise<Result<void, PracticeError>> {
+    try {
+      await this.noteDataSource.deleteNoteDto(noteId)
+      return ok(undefined)
+    } catch (thrown) {
+      if (thrown instanceof Error && thrown.message.startsWith("Record not found")) {
+        return err(practiceCardNotFoundError(thrown.message))
+      }
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
+  async linkCaseNote(
+    caseId: string,
+    link: { readonly noteId: string } | { readonly name: string; readonly content: string },
+  ): Promise<Result<PracticeCardDto, PracticeError>> {
+    try {
+      let noteId: string
+      if ("noteId" in link) {
+        noteId = link.noteId
+      } else {
+        const languageId = await this.requireCaseLanguageId(caseId)
+        const created = await this.noteDataSource.createNoteDto(languageId, link.name, link.content)
+        noteId = created.id
+      }
+      await this.noteDataSource.attachNoteToCase(caseId, noteId)
+      const caseDto = await this.caseDataSource.getCaseDtoById(caseId)
+      return ok(PracticeRepository.caseDtoToPracticeCard(caseDto))
+    } catch (thrown) {
+      if (thrown instanceof Error && thrown.message.startsWith("Record not found")) {
+        return err(practiceCardNotFoundError(thrown.message))
+      }
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
+  async unlinkCaseNote(caseId: string, noteId: string): Promise<Result<PracticeCardDto, PracticeError>> {
+    try {
+      await this.noteDataSource.detachNoteFromCase(caseId, noteId)
+      const caseDto = await this.caseDataSource.getCaseDtoById(caseId)
+      return ok(PracticeRepository.caseDtoToPracticeCard(caseDto))
+    } catch (thrown) {
+      if (thrown instanceof Error && thrown.message.startsWith("Record not found")) {
+        return err(practiceCardNotFoundError(thrown.message))
+      }
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
+  private async requireCaseLanguageId(caseId: string): Promise<string> {
+    const languageId = await this.categoryDataSource.getCaseLanguageId(caseId)
+    if (!languageId) {
+      throw new Error(`Record not found: ${caseId}`)
+    }
+    return languageId
+  }
+
   async setCaseCategories(
     caseId: string,
     categoryIds: readonly string[],
@@ -443,6 +548,7 @@ export class PracticeRepository {
       associations: caseDto.associations,
       categories: caseDto.categories,
       representations: caseDto.representations,
+      notes: caseDto.notes ?? [],
     }
   }
 

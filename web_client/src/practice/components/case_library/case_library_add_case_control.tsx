@@ -33,6 +33,7 @@ export function CaseLibraryAddCaseControl({
   className,
 }: CaseLibraryAddCaseControlProps) {
   const [editing, setEditing] = useState(false)
+  const [detailsStep, setDetailsStep] = useState(false)
   const [caseValue, setCaseValue] = useState("")
   const [meaning, setMeaning] = useState("")
   const [representationDrafts, setRepresentationDrafts] = useState<Record<number, string>>(() =>
@@ -45,7 +46,7 @@ export function CaseLibraryAddCaseControl({
 
   const valueTrim = caseValue.trim()
   const meaningTrim = meaning.trim()
-  const panelOpen = editing && valueTrim.length > 0
+  const panelOpen = editing && detailsStep && valueTrim.length > 0
   const canSubmit = valueTrim.length > 0 && meaningTrim.length > 0 && !saving
 
   const fieldClassName = `h-9 w-full rounded-lg border border-grid-line bg-tile px-3 text-sm text-foreground placeholder:text-muted shadow-lg focus:border-accent/40 focus:outline-none disabled:opacity-50`
@@ -71,6 +72,7 @@ export function CaseLibraryAddCaseControl({
       if (rootRef.current?.contains(target)) return
       if (target instanceof Element && target.closest("[data-case-add-panel]")) return
       setEditing(false)
+      setDetailsStep(false)
       setCaseValue("")
       setMeaning("")
       setRepresentationDrafts(emptyRepresentationDrafts(representationTypes))
@@ -79,6 +81,12 @@ export function CaseLibraryAddCaseControl({
     return () => document.removeEventListener("mousedown", onPointerDown)
   }, [editing, representationTypes])
 
+  useEffect(() => {
+    if (!panelOpen || saving) return
+    const id = requestAnimationFrame(() => meaningRef.current?.focus())
+    return () => cancelAnimationFrame(id)
+  }, [panelOpen, saving])
+
   function startEditing() {
     if (saving) return
     setEditing(true)
@@ -86,10 +94,27 @@ export function CaseLibraryAddCaseControl({
 
   function closeEditing() {
     setEditing(false)
+    setDetailsStep(false)
     setCaseValue("")
     setMeaning("")
     setRepresentationDrafts(emptyRepresentationDrafts(representationTypes))
   }
+
+  function advanceToDetailsStep() {
+    if (valueTrim.length === 0) return
+    setDetailsStep(true)
+  }
+
+  function backToValueStep() {
+    setDetailsStep(false)
+    setMeaning("")
+    setRepresentationDrafts(emptyRepresentationDrafts(representationTypes))
+    requestAnimationFrame(() => valueRef.current?.focus())
+  }
+
+  useEffect(() => {
+    if (valueTrim.length === 0) setDetailsStep(false)
+  }, [valueTrim.length])
 
   async function submit() {
     if (!canSubmit) return
@@ -134,13 +159,15 @@ export function CaseLibraryAddCaseControl({
             onChange={(e) => setCaseValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Escape") closeEditing()
-              if (e.key === "Tab" && !e.shiftKey && valueTrim.length > 0) {
+              if (e.key === "Backspace" && caseValue.length === 0) {
                 e.preventDefault()
-                meaningRef.current?.focus()
+                closeEditing()
+                return
               }
-              if (e.key === "Enter" && valueTrim.length > 0) {
+              const forward = (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) && valueTrim.length > 0
+              if (forward) {
                 e.preventDefault()
-                meaningRef.current?.focus()
+                advanceToDetailsStep()
               }
             }}
             className="h-9 min-w-0 flex-1 border-0 bg-transparent text-sm text-foreground placeholder:text-muted focus:outline-none"
@@ -180,6 +207,11 @@ export function CaseLibraryAddCaseControl({
             onChange={(e) => setMeaning(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Escape") closeEditing()
+              if (e.key === "Backspace" && meaning.length === 0) {
+                e.preventDefault()
+                backToValueStep()
+                return
+              }
               if (e.key === "Enter") {
                 e.preventDefault()
                 void submit()

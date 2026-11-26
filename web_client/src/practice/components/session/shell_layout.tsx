@@ -20,6 +20,11 @@ type ShellLayoutProps = CardLayoutProps & {
   readonly grading?: boolean
   readonly overlays: ReactNode
   readonly caseCategories?: ReactNode
+  readonly caseNotes?: ReactNode
+  readonly sessionBanner?: ReactNode
+  readonly footerDisabled?: boolean
+  /** Replaces the practice card when loading or deck is empty. */
+  readonly main?: ReactNode
 }
 
 export function ShellLayout(props: ShellLayoutProps) {
@@ -39,11 +44,16 @@ export function ShellLayout(props: ShellLayoutProps) {
     grading,
     overlays,
     caseCategories,
+    caseNotes,
+    sessionBanner,
+    footerDisabled,
+    main,
     ...card
   } = props
 
   return (
     <main className="relative mx-auto flex min-h-dvh max-w-lg flex-col gap-6 p-6 pb-10">
+      {sessionBanner}
       <HeaderLayout
         languageIcon={languageIcon}
         languageName={languageName}
@@ -56,8 +66,15 @@ export function ShellLayout(props: ShellLayoutProps) {
         onOpenLanguages={onOpenLanguages}
         onOpenCaseLibrary={onOpenCaseLibrary}
       />
-      <CardLayout {...card} caseCategories={caseCategories} />
-      <FooterLayout onFront={card.onFront} grading={grading} onReveal={onReveal} onGrade={onGrade} />
+      {main ?? <CardLayout {...card} caseCategories={caseCategories} />}
+      {caseNotes}
+      <FooterLayout
+        onFront={card.onFront}
+        grading={grading}
+        disabled={footerDisabled}
+        onReveal={onReveal}
+        onGrade={onGrade}
+      />
       {overlays}
     </main>
   )

@@ -21,6 +21,12 @@ export type CaseCategoryRefDto = {
   readonly name: string
 }
 
+export type CaseNoteRefDto = {
+  readonly id: string
+  readonly name: string
+  readonly content: string
+}
+
 export type CaseDto = {
   readonly id: string
   readonly languageName: string
@@ -29,6 +35,7 @@ export type CaseDto = {
   readonly associations: readonly AssociationDto[]
   readonly categories: readonly CaseCategoryRefDto[]
   readonly representations: readonly CaseRepresentationDto[]
+  readonly notes: readonly CaseNoteRefDto[]
 }
 import type {
   CaseRepresentationDto,
@@ -36,6 +43,7 @@ import type {
   DrizzleCaseRepresentationDataSource,
 } from "@/core/data_sources/case_representation_data_source_drizzle"
 import type { DrizzleCategoryDataSource } from "@/core/data_sources/category_data_source_drizzle"
+import type { DrizzleNoteDataSource } from "@/core/data_sources/note_data_source_drizzle"
 import { db } from "@/core/db"
 import { associations, cases, languages } from "@/db/schema"
 
@@ -56,11 +64,13 @@ export class DrizzleCaseDataSource {
   constructor(
     private readonly categoryDataSource: DrizzleCategoryDataSource,
     private readonly caseRepresentationDataSource: DrizzleCaseRepresentationDataSource,
+    private readonly noteDataSource: DrizzleNoteDataSource,
   ) {}
 
   private async loadCaseDto(
     caseId: string,
     representations?: readonly CaseRepresentationDto[],
+    noteRefs?: readonly CaseNoteRefDto[],
   ): Promise<CaseDto> {
   const rows = await db
     .select({
@@ -88,6 +98,10 @@ export class DrizzleCaseDataSource {
   const categoryMap = await this.categoryDataSource.listCategoryRefsByCaseIds([base.caseId])
   const reps =
     representations ?? (await this.caseRepresentationDataSource.listForCaseId(caseId))
+  const noteList =
+    noteRefs ??
+    (await this.noteDataSource.listNoteRefsByCaseIds([caseId])).get(caseId) ??
+    []
 
   return {
     id: base.caseId,
@@ -97,6 +111,7 @@ export class DrizzleCaseDataSource {
     associations: assocRows.map(mapAssociationRow),
     categories: categoryMap.get(base.caseId) ?? [],
     representations: reps,
+    notes: noteList,
   }
   }
 
@@ -109,10 +124,11 @@ export class DrizzleCaseDataSource {
 
     const caseIds = rows.map((row) => row.id)
     const repMap = await this.caseRepresentationDataSource.listForCaseIds(caseIds)
+    const noteMap = await this.noteDataSource.listNoteRefsByCaseIds(caseIds)
 
     const loaded: CaseDto[] = []
     for (const row of rows) {
-      loaded.push(await this.loadCaseDto(row.id, repMap.get(row.id) ?? []))
+      loaded.push(await this.loadCaseDto(row.id, repMap.get(row.id) ?? [], noteMap.get(row.id) ?? []))
     }
     return loaded
   }

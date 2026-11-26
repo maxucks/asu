@@ -5,18 +5,28 @@ import type { AssocRow } from "@/practice/components/assoc/list_layout"
 import { AssocTextFormLayout } from "@/practice/components/assoc/text_form_layout"
 import { AssocUrlFormLayout } from "@/practice/components/assoc/url_form_layout"
 import { OverlaysLayout } from "@/practice/components/session/overlays_layout"
-import { HeaderLayout } from "@/practice/components/session/header_layout"
-import { EmptyQueueLayout } from "@/practice/components/session/empty_queue_layout"
 import { ShellLayout } from "@/practice/components/session/shell_layout"
-import { StatusLayout } from "@/practice/components/session/status_layout"
+import {
+  PracticeCardPlaceholderLayout,
+  PracticeNotesPlaceholder,
+} from "@/practice/components/session/practice_card_placeholder_layout"
+import { PracticeCardEmptyLayout } from "@/practice/components/session/practice_card_empty_layout"
+import { PracticeErrorCodes } from "@/practice/practice_errors"
 import { useActiveLanguageMeta } from "@/practice/hooks/use_active_language"
 import { usePractice } from "@/practice/hooks/use_practice"
 import { useRepresentationTypes } from "@/practice/hooks/use_representation_types"
 import { useSessionUi } from "@/practice/hooks/use_session_ui"
 import { usePracticeSessionController } from "@/practice/practice_session_controller"
-import { isAssociationOnCard } from "@/practice/practice_session_view_state"
+import {
+  isAssociationOnCard,
+  isPracticeSessionReadyViewState,
+} from "@/practice/practice_session_view_state"
 import { associationKindLabel } from "@/practice/practice_utils"
 import { CategoryFilterModal } from "@/practice/components/category/category_filter_modal"
+import { CaseNoteAttachField } from "@/practice/components/notes/case_note_attach_field"
+import { useLanguageNotes } from "@/practice/hooks/use_language_notes"
+import type { LibraryTab } from "@/practice/components/library/library_tab_bar"
+import { LibraryFab } from "@/practice/components/notes/notes_fab"
 import { CaseCategoryField } from "@/practice/components/category/case_category_field"
 import type { CategoryDto } from "@/practice/practice_repository"
 import { useCallback, useEffect, useState } from "react"
@@ -26,9 +36,14 @@ export function SessionScreenLogic() {
   const session = usePracticeSessionController(repo, activeLanguageId, activeCategoryId)
   const { types: representationTypes } = useRepresentationTypes(repo, activeLanguageId)
   const ui = useSessionUi(session, representationTypes)
+  const { notes: languageNotes, refresh: refreshLanguageNotes } = useLanguageNotes(repo, activeLanguageId)
+  const [noteAttachBusy, setNoteAttachBusy] = useState(false)
   const { name: languageName, icon: languageIcon } = useActiveLanguageMeta()
   const [languageOpen, setLanguageOpen] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
+  const [libraryTab, setLibraryTab] = useState<LibraryTab>("cases")
+  const [libraryNoteId, setLibraryNoteId] = useState<string | null>(null)
+  const [libraryLinkCaseId, setLibraryLinkCaseId] = useState<string | null>(null)
   const [categoryOpen, setCategoryOpen] = useState(false)
   const [categories, setCategories] = useState<readonly CategoryDto[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(false)
@@ -62,7 +77,23 @@ export function SessionScreenLogic() {
       (session.state.status === "ready" ? session.state.totalCases : 0))
     : totalLanguageCases
 
-  const openLibrary = () => setLibraryOpen(true)
+  const openLibrary = (options?: {
+    readonly tab?: LibraryTab
+    readonly noteId?: string | null
+    readonly linkCaseId?: string | null
+  }) => {
+    const tab = options?.tab ?? (options?.noteId || options?.linkCaseId ? "notes" : libraryTab)
+    setLibraryTab(tab)
+    setLibraryNoteId(options?.noteId ?? null)
+    setLibraryLinkCaseId(options?.linkCaseId ?? null)
+    setLibraryOpen(true)
+  }
+
+  const closeLibrary = () => {
+    setLibraryOpen(false)
+    setLibraryNoteId(null)
+    setLibraryLinkCaseId(null)
+  }
 
   const headerCategoryProps = {
     categoryLabel: headerCategoryLabel,
@@ -86,19 +117,35 @@ export function SessionScreenLogic() {
     [activeCategoryId, refreshCategoryMeta, session, setActiveCategoryId],
   )
 
-  const languageBar = (
-    <HeaderLayout
-      languageIcon={languageIcon}
-      languageName={languageName}
-      progress={
-        session.state.status === "ready"
-          ? `${session.state.passedCount} passed · ${session.state.totalCases} in deck`
-          : "—"
-      }
-      {...headerCategoryProps}
-      onOpenLanguages={() => setLanguageOpen(true)}
-      onOpenCaseLibrary={openLibrary}
-    />
+  const attachCaseId =
+    session.state.status === "ready" ? (session.currentCard?.id ?? null) : null
+
+  const handleAttachNote = useCallback(
+    async (noteId: string) => {
+      if (!attachCaseId) return false
+      setNoteAttachBusy(true)
+      const result = await repo.linkCaseNote(attachCaseId, { noteId })
+      setNoteAttachBusy(false)
+      if (!result.ok) return false
+      await session.reloadQueue()
+      await refreshLanguageNotes()
+      return true
+    },
+    [attachCaseId, refreshLanguageNotes, repo, session],
+  )
+
+  const handleCreateAndAttachNote = useCallback(
+    async (name: string, content: string) => {
+      if (!attachCaseId) return false
+      setNoteAttachBusy(true)
+      const result = await repo.linkCaseNote(attachCaseId, { name, content })
+      setNoteAttachBusy(false)
+      if (!result.ok) return false
+      await session.reloadQueue()
+      await refreshLanguageNotes()
+      return true
+    },
+    [attachCaseId, refreshLanguageNotes, repo, session],
   )
 
   const categoryModal = (
@@ -124,7 +171,7 @@ export function SessionScreenLogic() {
     />
   )
 
-  const caseLibrary = (
+  const practiceLibrary = (
     <CaseLibraryDrawer
       open={libraryOpen}
       languageId={activeLanguageId}
@@ -132,68 +179,88 @@ export function SessionScreenLogic() {
       languageIcon={languageIcon}
       representationTypes={representationTypes}
       repo={repo}
-      onClose={() => setLibraryOpen(false)}
+      onClose={closeLibrary}
+      tab={libraryTab}
+      onTab={setLibraryTab}
+      initialNoteId={libraryNoteId}
+      linkCaseId={libraryLinkCaseId}
+      attachedNoteIds={
+        session.state.status === "ready" && session.currentCard
+          ? session.currentCard.notes.map((note) => note.id)
+          : []
+      }
       onVocabularyChange={() => void session.reloadQueue()}
     />
   )
 
-  if (session.state.status === "loading") {
-    return (
-      <>
-        {languageModal}
-        {categoryModal}
-        {caseLibrary}
-        <div className="mx-auto flex min-h-dvh max-w-lg flex-col gap-4 p-6">
-          {languageBar}
-          <StatusLayout kind="loading" />
-        </div>
-      </>
-    )
-  }
+  const readyState = isPracticeSessionReadyViewState(session.state) ? session.state : null
+  const sessionReady = readyState !== null
+  const sessionError = session.state.status === "error" ? session.state.error : null
+  const forcedEmpty =
+    session.state.status === "error" && sessionError?.code === PracticeErrorCodes.NoCards
+  const sessionLoading = session.state.status === "loading"
 
-  if (session.state.status === "error") {
-    return (
-      <>
-        {languageModal}
-        {categoryModal}
-        {caseLibrary}
-        <div className="mx-auto flex min-h-dvh max-w-lg flex-col gap-4 p-6">
-          {languageBar}
-          <StatusLayout kind="error" message={session.state.error.message} code={session.state.error.code} />
-        </div>
-      </>
-    )
-  }
-
-  if (session.state.status !== "ready") {
-    return null
-  }
-
-  if (session.state.totalCases === 0) {
-    return (
-      <>
-        {languageModal}
-        {categoryModal}
-        {caseLibrary}
-        <EmptyQueueLayout
-          languageIcon={languageIcon}
-          languageName={languageName}
-          onOpenLanguages={() => setLanguageOpen(true)}
-          onOpenCaseLibrary={openLibrary}
-          {...headerCategoryProps}
-          categoryModal={categoryModal}
-        />
-      </>
-    )
-  }
-
-  const { phase, passedCount, totalCases } = session.state
+  const phase = readyState?.phase ?? "front"
+  const passedCount = readyState?.passedCount ?? 0
+  const totalCases = readyState?.totalCases ?? totalLanguageCases
   const onFront = phase === "front"
   const card = session.currentCard
+  const deckEmpty =
+    forcedEmpty || (sessionReady && (totalCases === 0 || card === null))
+  const showPracticeCard = sessionReady && !deckEmpty && card !== null
+
+  const progressLabel = sessionLoading
+    ? "Loading…"
+    : sessionReady
+      ? `${passedCount} passed · ${totalCases} in deck`
+      : "—"
+
+  const mainSlot = showPracticeCard
+    ? undefined
+    : deckEmpty && (sessionReady || forcedEmpty)
+      ? (
+          <PracticeCardEmptyLayout
+            categoryActive={activeCategoryId !== null}
+            onClearCategory={() => setActiveCategoryId(null)}
+          />
+        )
+      : (
+          <PracticeCardPlaceholderLayout />
+        )
+
+  const notesSlot = showPracticeCard && card && !ui.editingCase ? (
+    <CaseNoteAttachField
+      notes={card.notes}
+      languageNotes={languageNotes}
+      disabled={ui.saving || noteAttachBusy}
+      attaching={noteAttachBusy}
+      onOpenNote={(noteId) => openLibrary({ tab: "notes", noteId, linkCaseId: card.id })}
+      onAttach={handleAttachNote}
+      onCreateAndAttach={handleCreateAndAttachNote}
+    />
+  ) : (
+    <PracticeNotesPlaceholder />
+  )
+
+  const sessionBanner =
+    sessionError && sessionError.code !== PracticeErrorCodes.NoCards ? (
+      <div className="flex flex-col gap-2 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2.5 text-sm text-danger">
+        <p>{sessionError.message}</p>
+        <button
+          type="button"
+          className="self-start rounded-lg border border-danger/40 bg-card px-3 py-1.5 text-xs font-medium text-foreground transition hover:border-danger/60"
+          onClick={() => void session.reloadPracticeSession()}
+        >
+          Retry
+        </button>
+      </div>
+    ) : null
+
   const managing = onFront && (ui.editor === null || ui.editor.intent === "edit") && !ui.adding && !ui.editingCase
   const associationSortable = managing && onFront && !ui.editingCase
 
-  const rows: AssocRow[] = session.visibleAssociations.map((association) => {
+  const rows: AssocRow[] = showPracticeCard
+    ? session.visibleAssociations.map((association) => {
     const flags = assocFlags(association, session, ui.editor, phase, managing)
     return {
       association,
@@ -229,9 +296,10 @@ export function SessionScreenLogic() {
       ),
     }
   })
+    : []
 
   const addText =
-    onFront && ui.editor?.intent === "add" && ui.editor.mode === "text" ? (
+    showPracticeCard && onFront && ui.editor?.intent === "add" && ui.editor.mode === "text" ? (
       <AssocTextFormLayout
         saving={session.savingAssociation === "text"}
         onCancel={() => ui.setEditor(null)}
@@ -242,7 +310,7 @@ export function SessionScreenLogic() {
     ) : null
 
   const addUrl =
-    onFront && ui.editor?.intent === "add" && ui.editor.mode === "image_url" ? (
+    showPracticeCard && onFront && ui.editor?.intent === "add" && ui.editor.mode === "image_url" ? (
       <AssocUrlFormLayout
         saving={session.savingAssociation === "image_url"}
         onCancel={() => ui.setEditor(null)}
@@ -253,19 +321,23 @@ export function SessionScreenLogic() {
   return (
     <>
       {languageModal}
-      {caseLibrary}
-      {categoryModal}
+        {practiceLibrary}
+        {categoryModal}
+        <LibraryFab onOpen={() => openLibrary()} />
       <ShellLayout
         languageIcon={languageIcon}
         languageName={languageName}
         onOpenLanguages={() => setLanguageOpen(true)}
-        onOpenCaseLibrary={openLibrary}
-        progress={`${passedCount} passed · ${totalCases} in deck`}
+        onOpenCaseLibrary={() => openLibrary({ tab: "cases" })}
+        progress={progressLabel}
         {...headerCategoryProps}
+        sessionBanner={sessionBanner}
+        main={mainSlot}
+        footerDisabled={!showPracticeCard}
         onFront={onFront}
         editingCase={ui.editingCase}
         caseSaving={ui.caseSaving}
-        showAdd={onFront && ui.editor === null && !ui.editingCase}
+        showAdd={showPracticeCard && onFront && ui.editor === null && !ui.editingCase}
         saving={ui.saving}
         value={ui.valueDraft}
         meaning={ui.meaningDraft}
@@ -307,6 +379,7 @@ export function SessionScreenLogic() {
         onReveal={session.revealAnswer}
         onGrade={(grade) => void session.submitGrade(grade)}
         grading={session.gradingCase}
+        caseNotes={notesSlot}
         overlays={
           <OverlaysLayout
             createOpen={false}

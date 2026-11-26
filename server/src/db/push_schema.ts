@@ -18,6 +18,7 @@ applyAssociationsTableMigrations(sqlite)
 applyStudyRecordsTableMigrations(sqlite)
 applyCategoriesTableMigrations(sqlite)
 applyRepresentationTablesMigrations(sqlite)
+applyNotesTablesMigrations(sqlite)
 sqlite.close()
 
 log.info("schema applied", { database: databaseUrl })
@@ -203,4 +204,43 @@ INSERT OR IGNORE INTO representation_types (id, language_id, name) VALUES
   (3, 'lang-japanese', 'katakana'),
   (4, 'lang-japanese', 'hiragana');
 `)
+}
+
+function applyNotesTablesMigrations(sqlite: Database) {
+  const notesExists = sqlite
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'notes' LIMIT 1")
+    .get()
+
+  if (!notesExists) {
+    sqlite.exec(`
+CREATE TABLE IF NOT EXISTS notes (
+  id text PRIMARY KEY NOT NULL,
+  language_id text NOT NULL,
+  name text NOT NULL,
+  content text NOT NULL,
+  FOREIGN KEY (language_id) REFERENCES languages(id) ON UPDATE no action ON DELETE cascade
+);
+CREATE INDEX IF NOT EXISTS notes_language_id_idx ON notes (language_id);
+`)
+    log.info("created notes table")
+  }
+
+  const caseNotesExists = sqlite
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'case_notes' LIMIT 1")
+    .get()
+
+  if (!caseNotesExists) {
+    sqlite.exec(`
+CREATE TABLE IF NOT EXISTS case_notes (
+  case_id text NOT NULL,
+  note_id text NOT NULL,
+  PRIMARY KEY(case_id, note_id),
+  FOREIGN KEY (case_id) REFERENCES cases(id) ON UPDATE no action ON DELETE cascade,
+  FOREIGN KEY (note_id) REFERENCES notes(id) ON UPDATE no action ON DELETE cascade
+);
+CREATE INDEX IF NOT EXISTS case_notes_case_id_idx ON case_notes (case_id);
+CREATE INDEX IF NOT EXISTS case_notes_note_id_idx ON case_notes (note_id);
+`)
+    log.info("created case_notes table")
+  }
 }

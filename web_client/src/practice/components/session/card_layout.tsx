@@ -42,7 +42,7 @@ export type CardLayoutProps = {
 export function CardLayout(props: CardLayoutProps) {
   return (
     <section
-      className={`flex flex-1 flex-col overflow-hidden rounded-2xl border border-grid-line bg-card ${props.flat ? "" : "shadow-lg"}`}
+      className={`flex min-h-[min(70vh,32rem)] flex-1 flex-col overflow-hidden rounded-2xl border border-grid-line bg-card ${props.flat ? "" : "shadow-lg"}`}
     >
       <div className="space-y-3 border-b border-grid-line px-5 py-5">
         <ToolbarLayout

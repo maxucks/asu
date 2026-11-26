@@ -27,20 +27,38 @@ export function ConfirmBox(props: {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="presentation" onClick={onCancel}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
+      role="presentation"
+      onClick={onCancel}
+    >
       <div
         role="alertdialog"
         aria-modal="true"
-        className="w-full max-w-sm rounded-2xl border border-slate-600 bg-slate-900 p-5 shadow-2xl"
+        aria-labelledby="confirm-box-title"
+        className="w-full max-w-sm rounded-2xl border border-grid-line bg-card p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="text-lg font-medium text-slate-100">{title}</p>
-        <p className="mt-2 text-sm leading-relaxed text-slate-400">{message}</p>
+        <p id="confirm-box-title" className="text-lg font-semibold text-foreground">
+          {title}
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-muted">{message}</p>
         <div className="mt-5 flex justify-end gap-2">
-          <button ref={cancelRef} type="button" disabled={busy} onClick={onCancel} className="rounded-lg px-3 py-2 text-sm text-slate-300 hover:text-white">
+          <button
+            ref={cancelRef}
+            type="button"
+            disabled={busy}
+            onClick={onCancel}
+            className="rounded-lg border border-grid-line bg-tile px-3 py-2 text-sm font-medium text-foreground transition hover:border-accent/40 disabled:opacity-40"
+          >
             {cancelLabel}
           </button>
-          <button type="button" disabled={busy} onClick={onConfirm} className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white disabled:opacity-40">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onConfirm}
+            className="rounded-lg border border-danger/40 bg-danger px-3 py-2 text-sm font-medium text-white transition hover:border-danger/60 disabled:opacity-40"
+          >
             {busy ? "Working…" : confirmLabel}
           </button>
         </div>

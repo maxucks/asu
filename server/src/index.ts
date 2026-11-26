@@ -4,6 +4,7 @@ import { cors } from "hono/cors"
 import { DrizzleCaseDataSource } from "@/core/data_sources/case_data_source_drizzle"
 import { DrizzleCaseRepresentationDataSource } from "@/core/data_sources/case_representation_data_source_drizzle"
 import { DrizzleCategoryDataSource } from "@/core/data_sources/category_data_source_drizzle"
+import { DrizzleNoteDataSource } from "@/core/data_sources/note_data_source_drizzle"
 import { DrizzleLanguageDataSource } from "@/core/data_sources/language_data_source_drizzle"
 import { DrizzleRepresentationTypeDataSource } from "@/core/data_sources/representation_type_data_source_drizzle"
 import { DrizzleStudyRecordDataSource } from "@/core/data_sources/study_record_data_source_drizzle"
@@ -13,14 +14,16 @@ import { PracticeRepository } from "@/practice/practice_repository"
 import { createPracticeRoutes } from "@/practice/practice_routes"
 
 const categoryDataSource = new DrizzleCategoryDataSource()
+const noteDataSource = new DrizzleNoteDataSource()
 const representationTypeDataSource = new DrizzleRepresentationTypeDataSource()
 const caseRepresentationDataSource = new DrizzleCaseRepresentationDataSource(representationTypeDataSource)
 const repository = new PracticeRepository(
   new DrizzleStudyRecordDataSource(),
-  new DrizzleCaseDataSource(categoryDataSource, caseRepresentationDataSource),
+  new DrizzleCaseDataSource(categoryDataSource, caseRepresentationDataSource, noteDataSource),
   categoryDataSource,
   new DrizzleLanguageDataSource(),
   representationTypeDataSource,
+  noteDataSource,
 )
 
 function corsOrigins(): string[] {

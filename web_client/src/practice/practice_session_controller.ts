@@ -10,6 +10,7 @@ import {
   PracticeErrAssociationEmptyText,
   PracticeErrAssociationInvalidImageUrl,
   PracticeErrCaseValueEmpty,
+  PracticeErrorCodes,
   type PracticeError,
 } from "@/practice/practice_errors"
 import { PracticeCard } from "@/practice/practice_model"
@@ -72,12 +73,16 @@ export function usePracticeSessionController(
       return false
     }
 
+    let cards = listResult.value.cards.map((dto) => PracticeCard.fromDto(dto))
+
     if (!sessionResult.ok) {
+      if (sessionResult.error.code === PracticeErrorCodes.NoCards) {
+        setState(createPracticeSessionViewStateReady(cards, 0, "front", [], [], 0, cards.length))
+        return true
+      }
       setState(createPracticeSessionViewStateError(sessionResult.error))
       return false
     }
-
-    let cards = listResult.value.cards.map((dto) => PracticeCard.fromDto(dto))
     let cardIndex = cards.findIndex((card) => card.id === sessionResult.value.card.id)
     if (cardIndex < 0) {
       cards = [...cards, PracticeCard.fromDto(sessionResult.value.card)]
@@ -174,13 +179,17 @@ export function usePracticeSessionController(
       }
 
       const next = await practiceRepository.pickNextPracticeCard(languageId, caseId, categoryId)
-      if (!next.ok) {
-        setState(createPracticeSessionViewStateError(next.error))
-        return
-      }
 
       setState((prev) => {
         if (!isPracticeSessionReadyViewState(prev) || prev.phase !== "back") return prev
+
+        if (!next.ok) {
+          if (next.error.code === PracticeErrorCodes.NoCards && prev.cards.length > 0) {
+            const nextIndex = (prev.cardIndex + 1) % prev.cards.length
+            return createPracticeSessionViewStateAfterGrade(prev, nextIndex, prev.totalCases)
+          }
+          return createPracticeSessionViewStateError(next.error)
+        }
 
         const nextCard = PracticeCard.fromDto(next.value.card)
         let cards = prev.cards
@@ -456,6 +465,13 @@ export function usePracticeSessionController(
     [practiceRepository],
   )
 
+  const linkCaseNote = useCallback(
+    async (
+      link: { readonly noteId: string } | { readonly name: string; readonly content: string },
+    ): Promise<boolean> => runOnCurrentCard((caseId) => practiceRepository.linkCaseNote(caseId, link)),
+    [practiceRepository, runOnCurrentCard],
+  )
+
   const deleteVocabularyCase = useCallback(
     async (caseId: string): Promise<boolean> => {
       setDeletingCaseId(caseId)
@@ -504,5 +520,6 @@ export function usePracticeSessionController(
     updateCase: updateVocabularyCase,
     deleteCase: deleteVocabularyCase,
     reloadQueue,
+    linkCaseNote,
   }
 }

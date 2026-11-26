@@ -154,3 +154,50 @@ export const practiceUpdateCaseBodySchema = z
       message: "Provide value, meaning, or representations to update.",
     },
   )
+
+export const practiceNoteIdParamsSchema = z.object({
+  noteId: routeId,
+})
+
+export const practiceCaseNoteParamsSchema = practiceCaseIdParamsSchema.extend({
+  noteId: routeId,
+})
+
+const noteNameField = z
+  .string()
+  .transform((raw) => raw.trim().replace(/\s+/g, " "))
+  .refine((value) => value.length > 0, { message: "Note name cannot be empty." })
+
+const noteContentField = z
+  .string()
+  .transform((raw) => raw.trim())
+  .refine((value) => value.length > 0, { message: "Note content cannot be empty." })
+
+export const practiceCreateNoteBodySchema = z.object({
+  languageId: routeId,
+  name: noteNameField,
+  content: noteContentField,
+})
+
+export const practiceUpdateNoteBodySchema = z
+  .object({
+    name: noteNameField.optional(),
+    content: noteContentField.optional(),
+  })
+  .refine((value) => value.name !== undefined || value.content !== undefined, {
+    message: "Provide name or content to update.",
+  })
+
+const practiceLinkExistingNoteSchema = z.object({
+  noteId: routeId,
+})
+
+const practiceCreateAndLinkNoteSchema = z.object({
+  name: noteNameField,
+  content: noteContentField,
+})
+
+export const practiceLinkCaseNoteBodySchema = z.union([
+  practiceLinkExistingNoteSchema,
+  practiceCreateAndLinkNoteSchema,
+])

@@ -201,11 +201,13 @@ const SEED_CASES_RAW = [
       ),
     ],
   },
-] as const satisfies readonly Omit<CaseDto, "categories">[]
+] as const satisfies readonly Omit<CaseDto, "categories" | "representations" | "notes">[]
 
 const SEED_CASES: readonly CaseDto[] = SEED_CASES_RAW.map((item) => ({
   ...item,
   categories: [],
+  representations: [],
+  notes: [],
 }))
 
 const SEED_STUDY_RECORDS: readonly StudyRecordDto[] = [

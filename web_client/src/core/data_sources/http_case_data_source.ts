@@ -21,6 +21,12 @@ export type CaseRepresentationWrite = {
   readonly value: string | null
 }
 
+export type CaseNoteRefDto = {
+  readonly id: string
+  readonly name: string
+  readonly content: string
+}
+
 export type AssociationDto = {
   readonly id: string
   readonly kind: AssociationKind
@@ -40,6 +46,7 @@ export type PracticeCardDto = {
   readonly associations: readonly AssociationDto[]
   readonly categories: readonly CaseCategoryRefDto[]
   readonly representations: readonly CaseRepresentationDto[]
+  readonly notes: readonly CaseNoteRefDto[]
 }
 
 export type CaseDto = PracticeCardDto
