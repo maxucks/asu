@@ -10,7 +10,6 @@ import {
   PracticeErrAssociationEmptyText,
   PracticeErrAssociationInvalidImageUrl,
   PracticeErrCaseValueEmpty,
-  PracticeErrorCodes,
   type PracticeError,
 } from "@/practice/practice_errors"
 import { PracticeCard } from "@/practice/practice_model"
@@ -19,8 +18,16 @@ import type { PracticeGradeDto, PracticeCardDto } from "@/practice/practice_repo
 import { PracticeGrades } from "@/practice/practice_repository"
 import { parseCaseValue, parseCaseMeaning } from "@/practice/practice_model"
 import type { PracticeRepository } from "@/practice/practice_repository"
+import type { StudyRecordDto } from "@/core/data_sources/http_study_record_data_source"
 import {
-  createPracticeSessionViewStateAfterGrade,
+  applyPracticeGrade,
+  buildPracticePackRound,
+  createInitialStudyRecord,
+  injectPracticePackGradeRepeats,
+  studyRecordsToMap,
+} from "@/practice/practice_session_pack"
+import {
+  createPracticeSessionViewStateAfterPackAdvance,
   createPracticeSessionViewStateAfterVocabularyReload,
   createPracticeSessionViewStateError,
   createPracticeSessionViewStateLoading,
@@ -60,12 +67,25 @@ export function usePracticeSessionController(
   const [categoriesBusy, setCategoriesBusy] = useState(false)
   const stateRef = useRef(state)
   stateRef.current = state
+  const studyRecordsRef = useRef<Map<string, StudyRecordDto>>(new Map())
+
+  const syncStudyRecordsMap = useCallback((records: readonly StudyRecordDto[]) => {
+    studyRecordsRef.current = studyRecordsToMap(records)
+  }, [])
+
+  const ensureStudyRecord = useCallback((caseId: string): StudyRecordDto => {
+    const existing = studyRecordsRef.current.get(caseId)
+    if (existing) return existing
+    const created = createInitialStudyRecord(caseId)
+    studyRecordsRef.current.set(caseId, created)
+    return created
+  }, [])
 
   const bootstrapSession = useCallback(async (): Promise<boolean> => {
     setState(createPracticeSessionViewStateLoading())
-    const [listResult, sessionResult] = await Promise.all([
+    const [listResult, recordsResult] = await Promise.all([
       practiceRepository.listCases(languageId, categoryId),
-      practiceRepository.startPracticeSession(languageId, categoryId),
+      practiceRepository.listStudyRecords(languageId, categoryId),
     ])
 
     if (!listResult.ok) {
@@ -73,27 +93,37 @@ export function usePracticeSessionController(
       return false
     }
 
-    let cards = listResult.value.cards.map((dto) => PracticeCard.fromDto(dto))
-
-    if (!sessionResult.ok) {
-      if (sessionResult.error.code === PracticeErrorCodes.NoCards) {
-        setState(createPracticeSessionViewStateReady(cards, 0, "front", [], [], 0, cards.length))
-        return true
-      }
-      setState(createPracticeSessionViewStateError(sessionResult.error))
+    if (!recordsResult.ok) {
+      setState(createPracticeSessionViewStateError(recordsResult.error))
       return false
     }
-    let cardIndex = cards.findIndex((card) => card.id === sessionResult.value.card.id)
-    if (cardIndex < 0) {
-      cards = [...cards, PracticeCard.fromDto(sessionResult.value.card)]
-      cardIndex = cards.length - 1
+
+    const cards = listResult.value.cards.map((dto) => PracticeCard.fromDto(dto))
+    syncStudyRecordsMap(recordsResult.value)
+
+    const caseIds = cards.map((card) => card.id)
+    const playQueue = buildPracticePackRound(caseIds, studyRecordsRef.current)
+
+    if (cards.length === 0 || playQueue.length === 0) {
+      setState(
+        createPracticeSessionViewStateReady(cards, 0, "front", [], [], 0, cards.length, {
+          playQueue: [],
+          playQueueIndex: 0,
+          packRound: 1,
+        }),
+      )
+      return true
     }
 
     setState(
-      createPracticeSessionViewStateReady(cards, cardIndex, "front", [], [], 0, sessionResult.value.totalCases),
+      createPracticeSessionViewStateReady(cards, 0, "front", [], [], 0, cards.length, {
+        playQueue,
+        playQueueIndex: 0,
+        packRound: 1,
+      }),
     )
     return true
-  }, [categoryId, languageId, practiceRepository])
+  }, [categoryId, languageId, practiceRepository, syncStudyRecordsMap])
 
   useEffect(() => {
     let cancelled = false
@@ -178,37 +208,48 @@ export function usePracticeSessionController(
         return
       }
 
-      const next = await practiceRepository.pickNextPracticeCard(languageId, caseId, categoryId)
+      const record = ensureStudyRecord(caseId)
+      const updatedRecord = applyPracticeGrade(record, grade, new Date())
+      studyRecordsRef.current.set(caseId, updatedRecord)
 
       setState((prev) => {
         if (!isPracticeSessionReadyViewState(prev) || prev.phase !== "back") return prev
 
-        if (!next.ok) {
-          if (next.error.code === PracticeErrorCodes.NoCards && prev.cards.length > 0) {
-            const nextIndex = (prev.cardIndex + 1) % prev.cards.length
-            return createPracticeSessionViewStateAfterGrade(prev, nextIndex, prev.totalCases)
-          }
-          return createPracticeSessionViewStateError(next.error)
+        let queue = injectPracticePackGradeRepeats(
+          prev.playQueue,
+          prev.playQueueIndex,
+          caseId,
+          grade,
+        )
+        let nextQueueIndex = prev.playQueueIndex + 1
+        let packRound = prev.packRound
+
+        const caseIds = prev.cards.map((card) => card.id)
+
+        if (nextQueueIndex >= queue.length) {
+          packRound += 1
+          queue = buildPracticePackRound(caseIds, studyRecordsRef.current)
+          nextQueueIndex = 0
         }
 
-        const nextCard = PracticeCard.fromDto(next.value.card)
-        let cards = prev.cards
-        let cardIndex = cards.findIndex((card) => card.id === nextCard.id)
-        if (cardIndex < 0) {
-          cards = [...cards, nextCard]
-          cardIndex = cards.length - 1
-        } else {
-          cards = cards.map((card, index) => (index === cardIndex ? nextCard : card))
+        if (queue.length === 0) {
+          return createPracticeSessionViewStateReady(prev.cards, 0, "front", [], [], prev.passedCount + 1, 0, {
+            playQueue: [],
+            playQueueIndex: 0,
+            packRound,
+          })
         }
 
-        return createPracticeSessionViewStateAfterGrade(
-          { ...prev, cards },
-          cardIndex,
-          next.value.totalCases,
+        return createPracticeSessionViewStateAfterPackAdvance(
+          prev,
+          queue,
+          nextQueueIndex,
+          packRound,
+          prev.cards,
         )
       })
     },
-    [categoryId, languageId, practiceRepository],
+    [ensureStudyRecord, practiceRepository],
   )
 
   const setCaseCategories = useCallback(
@@ -270,6 +311,11 @@ export function usePracticeSessionController(
               revealed,
               prev.passedCount,
               prev.totalCases,
+              {
+                playQueue: prev.playQueue,
+                playQueueIndex: prev.playQueueIndex,
+                packRound: prev.packRound,
+              },
             )
           })
         }
@@ -292,6 +338,11 @@ export function usePracticeSessionController(
           revealed,
           patched.passedCount,
           patched.totalCases,
+          {
+            playQueue: patched.playQueue,
+            playQueueIndex: patched.playQueueIndex,
+            packRound: patched.packRound,
+          },
         )
       })
       return true
@@ -375,26 +426,63 @@ export function usePracticeSessionController(
   )
 
   const reloadQueue = useCallback(async (): Promise<boolean> => {
-    const result = await practiceRepository.listCases(languageId, categoryId)
-    if (!result.ok) {
-      setState(createPracticeSessionViewStateError(result.error))
+    const [listResult, recordsResult] = await Promise.all([
+      practiceRepository.listCases(languageId, categoryId),
+      practiceRepository.listStudyRecords(languageId, categoryId),
+    ])
+    if (!listResult.ok) {
+      setState(createPracticeSessionViewStateError(listResult.error))
+      return false
+    }
+    if (!recordsResult.ok) {
+      setState(createPracticeSessionViewStateError(recordsResult.error))
       return false
     }
 
-    const cards = result.value.cards.map((dto) => PracticeCard.fromDto(dto))
+    syncStudyRecordsMap(recordsResult.value)
+
+    const cards = listResult.value.cards.map((dto) => PracticeCard.fromDto(dto))
     const totalCases = cards.length
+    const caseIds = cards.map((card) => card.id)
+    const playQueue = buildPracticePackRound(caseIds, studyRecordsRef.current)
 
     setState((prev) => {
       if (!isPracticeSessionReadyViewState(prev)) {
         if (totalCases === 0) {
-          return createPracticeSessionViewStateReady([], 0, "front", [], [], 0, 0)
+          return createPracticeSessionViewStateReady([], 0, "front", [], [], 0, 0, {
+            playQueue: [],
+            playQueueIndex: 0,
+            packRound: 1,
+          })
         }
-        return createPracticeSessionViewStateReady(cards, 0, "front", [], [], 0, totalCases)
+        return createPracticeSessionViewStateReady(cards, 0, "front", [], [], 0, totalCases, {
+          playQueue,
+          playQueueIndex: 0,
+          packRound: 1,
+        })
       }
-      return createPracticeSessionViewStateAfterVocabularyReload(prev, cards, totalCases)
+
+      const activeCaseId = prev.playQueue[prev.playQueueIndex]
+      const stillInDeck = activeCaseId ? caseIds.includes(activeCaseId) : false
+      let nextPack = stillInDeck
+        ? {
+            playQueue: prev.playQueue.filter((id) => caseIds.includes(id)),
+            playQueueIndex: prev.playQueueIndex,
+            packRound: prev.packRound,
+          }
+        : { playQueue, playQueueIndex: 0, packRound: prev.packRound }
+
+      if (stillInDeck && nextPack.playQueue.length > 0) {
+        nextPack = {
+          ...nextPack,
+          playQueueIndex: Math.min(prev.playQueueIndex, nextPack.playQueue.length - 1),
+        }
+      }
+
+      return createPracticeSessionViewStateAfterVocabularyReload(prev, cards, totalCases, nextPack)
     })
     return true
-  }, [categoryId, practiceRepository, languageId])
+  }, [categoryId, practiceRepository, languageId, syncStudyRecordsMap])
 
   const reloadPracticeSession = useCallback(async () => bootstrapSession(), [bootstrapSession])
 

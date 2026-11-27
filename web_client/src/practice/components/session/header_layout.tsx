@@ -8,7 +8,6 @@ type HeaderLayoutProps = {
   readonly onClearCategory?: () => void
   readonly progress: string
   readonly onOpenLanguages: () => void
-  readonly onOpenCaseLibrary?: () => void
 }
 
 export function HeaderLayout({
@@ -21,7 +20,6 @@ export function HeaderLayout({
   onClearCategory,
   progress,
   onOpenLanguages,
-  onOpenCaseLibrary,
 }: HeaderLayoutProps) {
   return (
     <header className="flex items-center justify-between gap-3 text-sm">
@@ -64,20 +62,7 @@ export function HeaderLayout({
           </button>
         ) : null}
       </div>
-      <div className="flex shrink-0 items-center gap-2">
-        {onOpenCaseLibrary ? (
-          <button
-            type="button"
-            onClick={onOpenCaseLibrary}
-            aria-label="Open library"
-            title="Library"
-            className="rounded-lg border border-grid-line bg-tile px-2.5 py-2 text-xs font-semibold uppercase tracking-wide text-foreground transition hover:border-accent/40 hover:text-accent"
-          >
-            Library
-          </button>
-        ) : null}
-        <span className="tabular-nums text-muted">{progress}</span>
-      </div>
+      <span className="shrink-0 max-w-[10rem] truncate text-right tabular-nums text-muted">{progress}</span>
     </header>
   )
 }

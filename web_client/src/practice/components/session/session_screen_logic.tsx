@@ -8,6 +8,7 @@ import { OverlaysLayout } from "@/practice/components/session/overlays_layout"
 import { ShellLayout } from "@/practice/components/session/shell_layout"
 import { PracticeCardPlaceholderLayout } from "@/practice/components/session/practice_card_placeholder_layout"
 import type { CaseLibraryDetailTab } from "@/practice/components/case_library/case_library_detail_tab_bar"
+import { LibraryFab } from "@/practice/components/notes/notes_fab"
 import { PracticeCardEmptyLayout } from "@/practice/components/session/practice_card_empty_layout"
 import { PracticeErrorCodes } from "@/practice/practice_errors"
 import { useActiveLanguageMeta } from "@/practice/hooks/use_active_language"
@@ -24,7 +25,6 @@ import { CategoryFilterModal } from "@/practice/components/category/category_fil
 import { CaseNoteAttachField } from "@/practice/components/notes/case_note_attach_field"
 import { useLanguageNotes } from "@/practice/hooks/use_language_notes"
 import type { LibraryTab } from "@/practice/components/library/library_tab_bar"
-import { LibraryFab } from "@/practice/components/notes/notes_fab"
 import { CaseCategoryField } from "@/practice/components/category/case_category_field"
 import type { CategoryDto } from "@/practice/practice_repository"
 import { useCallback, useEffect, useState } from "react"
@@ -218,8 +218,17 @@ export function SessionScreenLogic() {
   const sessionLoading = session.state.status === "loading"
 
   const phase = readyState?.phase ?? "front"
-  const passedCount = readyState?.passedCount ?? 0
   const totalCases = readyState?.totalCases ?? totalLanguageCases
+  const packSize = readyState?.playQueue.length ?? 0
+  const packPosition =
+    readyState && packSize > 0 ? Math.min(readyState.playQueueIndex + 1, packSize) : 0
+
+  const answeredCount = readyState?.passedCount ?? 0
+  const answeredCountLabel =
+    answeredCount === 1 ? "1 word" : `${answeredCount} words`
+
+  const vocabularyCountLabel =
+    totalCases === 0 ? "no words" : totalCases === 1 ? "1 word" : `${totalCases} words`
   const onFront = phase === "front"
   const card = session.currentCard
 
@@ -231,14 +240,16 @@ export function SessionScreenLogic() {
     if (ui.editingCase && practiceDetailTab === "notes") setPracticeDetailTab("entry")
   }, [practiceDetailTab, ui.editingCase])
   const deckEmpty =
-    forcedEmpty || (sessionReady && (totalCases === 0 || card === null))
+    forcedEmpty || (sessionReady && (totalCases === 0 || packSize === 0 || card === null))
   const showPracticeCard = sessionReady && !deckEmpty && card !== null
 
   const progressLabel = sessionLoading
     ? "Loading…"
-    : sessionReady
-      ? `${passedCount} passed · ${totalCases} in deck`
-      : "—"
+    : sessionReady && packSize > 0
+      ? `${packPosition} / ${packSize} in pack · ${answeredCountLabel}`
+      : sessionReady
+        ? vocabularyCountLabel
+        : "—"
 
   const mainSlot = showPracticeCard
     ? undefined
@@ -350,12 +361,11 @@ export function SessionScreenLogic() {
       {languageModal}
         {practiceLibrary}
         {categoryModal}
-        <LibraryFab onOpen={() => openLibrary()} />
+      <LibraryFab onOpen={() => openLibrary({ tab: "cases" })} />
       <ShellLayout
         languageIcon={languageIcon}
         languageName={languageName}
         onOpenLanguages={() => setLanguageOpen(true)}
-        onOpenCaseLibrary={() => openLibrary({ tab: "cases" })}
         progress={progressLabel}
         {...headerCategoryProps}
         sessionBanner={sessionBanner}

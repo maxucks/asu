@@ -15,6 +15,10 @@ import type { LanguageDto } from "@/core/data_sources/http_language_data_source"
 import type { CaseRepresentationWrite } from "@/core/data_sources/http_case_data_source";
 import type { HttpRepresentationTypeDataSource } from "@/core/data_sources/http_representation_type_data_source";
 import type { HttpNoteDataSource, NoteDto } from "@/core/data_sources/http_note_data_source";
+import type {
+  HttpStudyRecordDataSource,
+  StudyRecordDto,
+} from "@/core/data_sources/http_study_record_data_source";
 import type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source";
 import {
   practiceAssociationErrorFromThrown,
@@ -39,6 +43,7 @@ export type {
 } from "@/core/data_sources/http_case_data_source";
 export type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source";
 export type { NoteDto } from "@/core/data_sources/http_note_data_source";
+export type { StudyRecordDto } from "@/core/data_sources/http_study_record_data_source";
 export type { CaseNoteRefDto } from "@/core/data_sources/http_case_data_source";
 
 export const PracticeGrades = ["hard", "medium", "easy"] as const;
@@ -52,6 +57,7 @@ export class PracticeRepository {
     private readonly categoryDataSource: HttpCategoryDataSource,
     private readonly representationTypeDataSource: HttpRepresentationTypeDataSource,
     private readonly noteDataSource: HttpNoteDataSource,
+    private readonly studyRecordDataSource: HttpStudyRecordDataSource,
   ) {}
 
   async listRepresentationTypes(
@@ -231,6 +237,17 @@ export class PracticeRepository {
     try {
       await this.caseDataSource.submitGradeDto(caseId, grade);
       return ok(undefined);
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown));
+    }
+  }
+
+  async listStudyRecords(
+    languageId: string,
+    categoryId: string | null = null,
+  ): Promise<Result<readonly StudyRecordDto[], PracticeError>> {
+    try {
+      return ok(await this.studyRecordDataSource.fetchStudyRecords(languageId, categoryId));
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown));
     }

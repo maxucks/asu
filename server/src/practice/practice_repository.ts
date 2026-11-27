@@ -8,7 +8,10 @@ import {
   DrizzleCategoryDataSource,
   type CategoryDto,
 } from "@/core/data_sources/category_data_source_drizzle"
-import { DrizzleStudyRecordDataSource } from "@/core/data_sources/study_record_data_source_drizzle"
+import {
+  DrizzleStudyRecordDataSource,
+  type StudyRecordDto,
+} from "@/core/data_sources/study_record_data_source_drizzle"
 import type {
   AssociationDto,
   CaseDto,
@@ -63,6 +66,7 @@ export const PracticeGrades = ["hard", "medium", "easy"] as const
 
 export type PracticeGradeDto = (typeof PracticeGrades)[number]
 
+import { buildPracticePackRound } from "@/practice/practice_pack"
 import {
   applyPracticeGrade,
   createInitialStudyRecord,
@@ -272,6 +276,20 @@ export class PracticeRepository {
     }
   }
 
+  async listStudyRecords(
+    languageId: string,
+    categoryId: string | null = null,
+  ): Promise<Result<readonly StudyRecordDto[], PracticeError>> {
+    try {
+      const allCases = await this.listCasesForPractice(languageId, categoryId)
+      const caseIds = allCases.map((item) => item.id)
+      const records = await this.studyRecordDataSource.listStudyRecordDtosByCaseIds(caseIds)
+      return ok(records)
+    } catch (thrown) {
+      return err(practiceQueueErrorFromThrown(thrown))
+    }
+  }
+
   async listCases(
     languageId: string,
     categoryId: string | null = null,
@@ -420,13 +438,22 @@ export class PracticeRepository {
     categoryId: string | null = null,
   ): Promise<Result<PracticeSessionDto, PracticeError>> {
     try {
-      const card = await this.pickPracticeCardDto(languageId, null, categoryId)
-      if (!card) {
+      const allCases = await this.listCasesForPractice(languageId, categoryId)
+      if (allCases.length === 0) {
         return err(PracticeErrQueueEmpty)
       }
 
-      const totalCases = (await this.listCasesForPractice(languageId, categoryId)).length
-      return ok({ totalCases, card })
+      const caseIds = allCases.map((item) => item.id)
+      const records = await this.studyRecordDataSource.listStudyRecordDtosByCaseIds(caseIds)
+      const recordByCaseId = new Map(records.map((record) => [record.caseId, record]))
+      const queue = buildPracticePackRound(caseIds, recordByCaseId)
+      const firstId = queue[0]
+      const caseDto = allCases.find((item) => item.id === firstId) ?? allCases[0]!
+
+      return ok({
+        totalCases: allCases.length,
+        card: PracticeRepository.caseDtoToPracticeCard(caseDto),
+      })
     } catch (thrown) {
       return err(practiceQueueErrorFromThrown(thrown))
     }

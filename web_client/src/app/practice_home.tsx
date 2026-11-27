@@ -8,6 +8,7 @@ import type { PracticeContextValue } from "@/practice/practice_context_value";
 import { HttpCategoryDataSource } from "@/core/data_sources/http_category_data_source";
 import { HttpRepresentationTypeDataSource } from "@/core/data_sources/http_representation_type_data_source";
 import { HttpNoteDataSource } from "@/core/data_sources/http_note_data_source";
+import { HttpStudyRecordDataSource } from "@/core/data_sources/http_study_record_data_source";
 import {
   readStoredCategoryId,
   writeStoredCategoryId,
@@ -54,6 +55,7 @@ export function PracticeHome() {
       new HttpCategoryDataSource(),
       new HttpRepresentationTypeDataSource(),
       new HttpNoteDataSource(queueCardsById),
+      new HttpStudyRecordDataSource(),
     );
     return { repo, activeLanguageId, setActiveLanguageId, activeCategoryId, setActiveCategoryId };
   }, [activeLanguageId, setActiveLanguageId, activeCategoryId, setActiveCategoryId]);

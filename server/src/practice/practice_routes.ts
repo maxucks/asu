@@ -180,6 +180,18 @@ export function createPracticeRoutes(repository: PracticeRepository) {
     return ok(c, result.value)
   })
 
+  routes.get("/study-records", async (c) => {
+    const query = parseQuery(c.req.query(), practiceQueueQuerySchema)
+    if (!query.ok) {
+      return error(c, query.error, practiceErrorHttpStatus(query.error.code))
+    }
+    const result = await repository.listStudyRecords(query.value.languageId, query.value.categoryId ?? null)
+    if (!result.ok) {
+      return error(c, result.error, practiceErrorHttpStatus(result.error.code))
+    }
+    return ok(c, { records: result.value })
+  })
+
   routes.get("/session", async (c) => {
     const query = parseQuery(c.req.query(), practiceSessionQuerySchema)
     if (!query.ok) {

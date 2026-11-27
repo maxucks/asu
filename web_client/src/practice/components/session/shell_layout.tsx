@@ -9,7 +9,6 @@ type ShellLayoutProps = CardLayoutProps & {
   readonly languageName?: string
   readonly progress: string
   readonly onOpenLanguages: () => void
-  readonly onOpenCaseLibrary?: () => void
   readonly categoryLabel?: string
   readonly categoryCount?: number
   readonly categoryActive?: boolean
@@ -32,7 +31,6 @@ export function ShellLayout(props: ShellLayoutProps) {
     languageName,
     progress,
     onOpenLanguages,
-    onOpenCaseLibrary,
     categoryLabel,
     categoryCount,
     categoryActive,
@@ -62,7 +60,6 @@ export function ShellLayout(props: ShellLayoutProps) {
         onOpenCategory={onOpenCategory}
         onClearCategory={onClearCategory}
         onOpenLanguages={onOpenLanguages}
-        onOpenCaseLibrary={onOpenCaseLibrary}
       />
       {main ?? <CardLayout {...card} caseCategories={caseCategories} />}
       <FooterLayout

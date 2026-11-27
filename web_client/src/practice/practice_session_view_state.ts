@@ -1,8 +1,15 @@
 import type { AssociationKind } from "@/core/data_sources/http_case_data_source"
 import type { PracticeError } from "@/practice/practice_errors"
 import { Association, type PracticeAssociation, type PracticeCard } from "@/practice/practice_model"
+import { cardIndexForCaseId } from "@/practice/practice_session_pack"
 
 export type PracticeSessionPhase = "front" | "back"
+
+export type PracticePackViewState = {
+  readonly playQueue: readonly string[]
+  readonly playQueueIndex: number
+  readonly packRound: number
+}
 
 export type PracticeSessionReadyViewState = {
   readonly status: "ready"
@@ -13,7 +20,7 @@ export type PracticeSessionReadyViewState = {
   readonly revealedHiddenAssociationIds: readonly string[]
   readonly passedCount: number
   readonly totalCases: number
-}
+} & PracticePackViewState
 
 export type PracticeSessionViewState =
   | { readonly status: "loading" }
@@ -25,6 +32,18 @@ export function isPracticeSessionReadyViewState(
   state: PracticeSessionViewState,
 ): state is PracticeSessionReadyViewState {
   return state.status === "ready"
+}
+
+export function selectPlayQueueCaseId(ready: PracticeSessionReadyViewState): string | null {
+  return ready.playQueue[ready.playQueueIndex] ?? null
+}
+
+function inheritPack(ready: PracticePackViewState): PracticePackViewState {
+  return {
+    playQueue: ready.playQueue,
+    playQueueIndex: ready.playQueueIndex,
+    packRound: ready.packRound,
+  }
 }
 
 export function createPracticeSessionViewStateLoading(): PracticeSessionViewState {
@@ -47,16 +66,27 @@ export function createPracticeSessionViewStateReady(
   revealedHiddenAssociationIds: readonly string[] = [],
   passedCount = 0,
   totalCases?: number,
+  pack?: Partial<PracticePackViewState>,
 ): PracticeSessionReadyViewState {
+  const defaultQueue = cards.map((card) => card.id)
+  const playQueue = pack?.playQueue ?? defaultQueue
+  const playQueueIndex = pack?.playQueueIndex ?? Math.min(cardIndex, Math.max(0, playQueue.length - 1))
+  const queueCaseId = playQueue[playQueueIndex]
+  const resolvedCardIndex =
+    queueCaseId !== undefined ? cardIndexForCaseId(cards, queueCaseId) : Math.min(cardIndex, Math.max(0, cards.length - 1))
+
   return {
     status: "ready",
     cards,
-    cardIndex,
+    cardIndex: resolvedCardIndex,
     phase,
     sessionAssociations,
     revealedHiddenAssociationIds,
     passedCount,
     totalCases: totalCases ?? cards.length,
+    playQueue,
+    playQueueIndex,
+    packRound: pack?.packRound ?? 1,
   }
 }
 
@@ -71,22 +101,33 @@ export function createPracticeSessionViewStateReadyRevealed(
     ready.revealedHiddenAssociationIds,
     ready.passedCount,
     ready.totalCases,
+    inheritPack(ready),
   )
 }
 
-export function createPracticeSessionViewStateAfterGrade(
+export function createPracticeSessionViewStateAfterPackAdvance(
   ready: PracticeSessionReadyViewState,
-  nextCardIndex: number,
-  totalCases: number,
+  nextQueue: readonly string[],
+  nextQueueIndex: number,
+  nextPackRound: number,
+  cards: readonly PracticeCard[],
 ): PracticeSessionReadyViewState {
+  const caseId = nextQueue[nextQueueIndex]
+  const cardIndex = cardIndexForCaseId(cards, caseId)
+
   return createPracticeSessionViewStateReady(
-    ready.cards,
-    nextCardIndex,
+    cards,
+    cardIndex,
     "front",
     [],
     [],
     ready.passedCount + 1,
-    totalCases,
+    ready.totalCases,
+    {
+      playQueue: nextQueue,
+      playQueueIndex: nextQueueIndex,
+      packRound: nextPackRound,
+    },
   )
 }
 
@@ -102,6 +143,7 @@ export function createPracticeSessionViewStateWithAssociation(
     ready.revealedHiddenAssociationIds,
     ready.passedCount,
     ready.totalCases,
+    inheritPack(ready),
   )
 }
 
@@ -110,32 +152,8 @@ export function createPracticeSessionViewStateWithReplacedCard(
   card: PracticeCard,
 ): PracticeSessionReadyViewState {
   const cards = ready.cards.map((entry) => (entry.id === card.id ? card : entry))
-  const cardIndex = cards.findIndex((entry) => entry.id === ready.cards[ready.cardIndex]?.id)
-  return createPracticeSessionViewStateReady(
-    cards,
-    cardIndex >= 0 ? cardIndex : ready.cardIndex,
-    ready.phase,
-    ready.sessionAssociations,
-    ready.revealedHiddenAssociationIds,
-    ready.passedCount,
-    ready.totalCases,
-  )
-}
-
-export function createPracticeSessionViewStateAfterVocabularyReload(
-  ready: PracticeSessionReadyViewState,
-  cards: readonly PracticeCard[],
-  totalCases: number,
-): PracticeSessionViewState {
-  if (cards.length === 0) {
-    return createPracticeSessionViewStateReady([], 0, "front", [], [], ready.passedCount, 0)
-  }
-
-  const activeId = ready.cards[ready.cardIndex]?.id
-  let cardIndex = activeId ? cards.findIndex((entry) => entry.id === activeId) : 0
-  if (cardIndex < 0) {
-    cardIndex = Math.min(ready.cardIndex, cards.length - 1)
-  }
+  const activeCaseId = selectPlayQueueCaseId(ready)
+  const cardIndex = activeCaseId ? cardIndexForCaseId(cards, activeCaseId) : ready.cardIndex
 
   return createPracticeSessionViewStateReady(
     cards,
@@ -144,7 +162,44 @@ export function createPracticeSessionViewStateAfterVocabularyReload(
     ready.sessionAssociations,
     ready.revealedHiddenAssociationIds,
     ready.passedCount,
+    ready.totalCases,
+    inheritPack(ready),
+  )
+}
+
+export function createPracticeSessionViewStateAfterVocabularyReload(
+  ready: PracticeSessionReadyViewState,
+  cards: readonly PracticeCard[],
+  totalCases: number,
+  pack: PracticePackViewState,
+): PracticeSessionViewState {
+  if (cards.length === 0) {
+    return createPracticeSessionViewStateReady([], 0, "front", [], [], ready.passedCount, 0, {
+      playQueue: [],
+      playQueueIndex: 0,
+      packRound: 1,
+    })
+  }
+
+  const activeId = selectPlayQueueCaseId(ready)
+  let playQueueIndex = pack.playQueueIndex
+  if (activeId && pack.playQueue.includes(activeId)) {
+    playQueueIndex = pack.playQueue.indexOf(activeId)
+  }
+
+  return createPracticeSessionViewStateReady(
+    cards,
+    cardIndexForCaseId(cards, pack.playQueue[playQueueIndex]),
+    ready.phase,
+    ready.sessionAssociations,
+    ready.revealedHiddenAssociationIds,
+    ready.passedCount,
     totalCases,
+    {
+      playQueue: pack.playQueue,
+      playQueueIndex,
+      packRound: pack.packRound,
+    },
   )
 }
 
@@ -164,6 +219,7 @@ export function createPracticeSessionViewStateWithToggledRevealedHidden(
     revealed,
     ready.passedCount,
     ready.totalCases,
+    inheritPack(ready),
   )
 }
 
@@ -179,6 +235,7 @@ export function createPracticeSessionViewStateWithoutSessionAssociation(
     ready.revealedHiddenAssociationIds.filter((id) => id !== associationId),
     ready.passedCount,
     ready.totalCases,
+    inheritPack(ready),
   )
 }
 
@@ -195,6 +252,7 @@ export function createPracticeSessionViewStateWithSessionAssociationPatched(
     ready.revealedHiddenAssociationIds,
     ready.passedCount,
     ready.totalCases,
+    inheritPack(ready),
   )
 }
 
@@ -205,7 +263,7 @@ export function createSessionAssociation(
 ): Association | null {
   if (kind === "text") return null
 
-  const card = ready.cards[ready.cardIndex]
+  const card = selectCurrentCard(ready)
   if (!card) return null
 
   const sortOrder = card.associations.length + ready.sessionAssociations.length
@@ -215,21 +273,23 @@ export function createSessionAssociation(
 
 export function selectCurrentCard(state: PracticeSessionViewState): PracticeCard | null {
   if (!isPracticeSessionReadyViewState(state)) return null
-  return state.cards[state.cardIndex] ?? null
+  const caseId = selectPlayQueueCaseId(state)
+  if (!caseId) return state.cards[state.cardIndex] ?? null
+  return state.cards.find((card) => card.id === caseId) ?? state.cards[state.cardIndex] ?? null
 }
 
 export function selectFrontCaseId(state: PracticeSessionViewState): string | null {
   if (!isPracticeSessionReadyViewState(state) || state.phase !== "front") {
     return null
   }
-  return state.cards[state.cardIndex]?.id ?? null
+  return selectPlayQueueCaseId(state)
 }
 
 export function selectCurrentCaseId(state: PracticeSessionViewState): string | null {
   if (!isPracticeSessionReadyViewState(state)) {
     return null
   }
-  return state.cards[state.cardIndex]?.id ?? null
+  return selectPlayQueueCaseId(state)
 }
 
 export function mergeVisibleAssociations(

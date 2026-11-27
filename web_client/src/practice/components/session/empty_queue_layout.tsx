@@ -41,7 +41,6 @@ export function EmptyQueueLayout({
         onOpenCategory={onOpenCategory}
         onClearCategory={onClearCategory}
         onOpenLanguages={onOpenLanguages}
-        onOpenCaseLibrary={onOpenCaseLibrary}
       />
       <section className="flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-grid-line bg-card px-6 py-12 text-center">
         <p className="text-lg font-semibold text-foreground">No vocabulary yet</p>
