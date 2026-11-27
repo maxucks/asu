@@ -1,6 +1,7 @@
 "use client"
 
 import { CategorySuggestionList } from "@/practice/components/category/category_suggestion_list"
+import { CaseAttachedNotesList } from "@/practice/components/notes/case_attached_notes_list"
 import { NoteAddStepperControl } from "@/practice/components/notes/note_add_stepper_control"
 import { noteContentPreview } from "@/practice/practice_note_utils"
 import type { CaseNoteRefDto, NoteDto } from "@/practice/practice_repository"
@@ -14,6 +15,7 @@ type CaseNoteAttachFieldProps = {
   readonly onOpenNote: (noteId: string) => void
   readonly onAttach: (noteId: string) => Promise<boolean>
   readonly onCreateAndAttach: (name: string, content: string) => Promise<boolean>
+  readonly onDetach: (noteId: string) => Promise<boolean>
 }
 
 export function CaseNoteAttachField({
@@ -24,7 +26,9 @@ export function CaseNoteAttachField({
   onOpenNote,
   onAttach,
   onCreateAndAttach,
+  onDetach,
 }: CaseNoteAttachFieldProps) {
+  const [detachingNoteId, setDetachingNoteId] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [createMode, setCreateMode] = useState(false)
   const [createTitle, setCreateTitle] = useState("")
@@ -214,25 +218,21 @@ export function CaseNoteAttachField({
         ) : null}
       </CategorySuggestionList>
 
-      <div className="scrollbar-hidden flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1">
-        {notes.map((note) => {
-          const preview = noteContentPreview(note.content)
-          return (
-            <button
-              key={note.id}
-              type="button"
-              onClick={() => onOpenNote(note.id)}
-              className="flex w-[min(85vw,16rem)] shrink-0 snap-start flex-col gap-1 rounded-xl border border-grid-line bg-card px-3 py-2.5 text-left transition hover:border-accent/40"
-            >
-              <p className="truncate text-sm font-semibold text-foreground">{note.name}</p>
-              <p className="line-clamp-3 whitespace-pre-wrap text-xs leading-snug text-muted">{preview}</p>
-            </button>
-          )
-        })}
-        {notes.length === 0 && !createMode ? (
-          <p className="text-xs text-muted px-1 py-2">Search above to attach or create a note.</p>
-        ) : null}
-      </div>
+      {notes.length > 0 || !createMode ? (
+        <CaseAttachedNotesList
+          notes={notes}
+          disabled={disabled || attaching}
+          detachingNoteId={detachingNoteId}
+          onOpenNote={onOpenNote}
+          onDetach={async (noteId) => {
+            setDetachingNoteId(noteId)
+            const ok = await onDetach(noteId)
+            setDetachingNoteId(null)
+            if (!ok) return
+          }}
+          emptyMessage="Search above to attach or create a note."
+        />
+      ) : null}
     </div>
   )
 }

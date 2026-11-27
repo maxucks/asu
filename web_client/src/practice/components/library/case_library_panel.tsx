@@ -35,6 +35,7 @@ type UseCaseLibraryPanelOptions = {
   readonly repo: PracticeRepository
   readonly representationTypes: readonly RepresentationTypeDto[]
   readonly onVocabularyChange?: () => void
+  readonly onOpenLinkedNote?: (noteId: string, linkCaseId: string) => void
 }
 
 export function useCaseLibraryPanel({
@@ -43,6 +44,7 @@ export function useCaseLibraryPanel({
   repo,
   representationTypes,
   onVocabularyChange,
+  onOpenLinkedNote,
 }: UseCaseLibraryPanelOptions) {
   const [cards, setCards] = useState<readonly PracticeCardDto[]>([])
   const [loading, setLoading] = useState(false)
@@ -152,6 +154,7 @@ export function useCaseLibraryPanel({
         onCardChange={handleCardChange}
         onDeleted={handleDeleted}
         onCategoriesMetaChange={() => void refreshCategoryMeta()}
+        onOpenLinkedNote={onOpenLinkedNote}
       />
     ),
   }
@@ -178,6 +181,7 @@ type CaseLibraryPanelBodyProps = {
   readonly onCardChange: (card: PracticeCardDto) => void
   readonly onDeleted: () => void
   readonly onCategoriesMetaChange: () => void
+  readonly onOpenLinkedNote?: (noteId: string, linkCaseId: string) => void
 }
 
 function CaseLibraryPanelBody(props: CaseLibraryPanelBodyProps) {
@@ -220,6 +224,11 @@ function CaseLibraryPanelBody(props: CaseLibraryPanelBodyProps) {
           onDeleted={props.onDeleted}
           onCategoriesMetaChange={props.onCategoriesMetaChange}
           representationTypes={props.representationTypes}
+          onOpenLinkedNote={
+            props.onOpenLinkedNote
+              ? (noteId) => props.onOpenLinkedNote?.(noteId, props.selected!.id)
+              : undefined
+          }
         />
       ) : null}
     </div>

@@ -28,6 +28,7 @@ type PracticeLibraryDrawerProps = {
   readonly initialNoteId?: string | null
   readonly linkCaseId?: string | null
   readonly attachedNoteIds?: readonly string[]
+  readonly onNavigateToNote?: (options: { readonly noteId: string; readonly linkCaseId: string }) => void
 }
 
 export function PracticeLibraryDrawer({
@@ -44,6 +45,7 @@ export function PracticeLibraryDrawer({
   initialNoteId,
   linkCaseId,
   attachedNoteIds,
+  onNavigateToNote,
 }: PracticeLibraryDrawerProps) {
   useEffect(() => {
     if (!open) return
@@ -60,6 +62,10 @@ export function PracticeLibraryDrawer({
     repo,
     representationTypes,
     onVocabularyChange,
+    onOpenLinkedNote: (noteId, openLinkCaseId) => {
+      onTab("notes")
+      onNavigateToNote?.({ noteId, linkCaseId: openLinkCaseId })
+    },
   })
 
   const notesPanel = useNotesLibraryPanel({

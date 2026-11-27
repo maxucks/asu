@@ -1,6 +1,10 @@
 const NOTE_PREVIEW_MAX_LINES = 3
 const NOTE_PREVIEW_MAX_CHARS = 200
 
+export function caseAttachedNotesCountLabel(count: number): string {
+  return `${count} notes`
+}
+
 export function noteContentPreview(content: string): string {
   const trimmed = content.trim()
   if (trimmed.length === 0) return ""

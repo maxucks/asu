@@ -6,10 +6,8 @@ import { AssocTextFormLayout } from "@/practice/components/assoc/text_form_layou
 import { AssocUrlFormLayout } from "@/practice/components/assoc/url_form_layout"
 import { OverlaysLayout } from "@/practice/components/session/overlays_layout"
 import { ShellLayout } from "@/practice/components/session/shell_layout"
-import {
-  PracticeCardPlaceholderLayout,
-  PracticeNotesPlaceholder,
-} from "@/practice/components/session/practice_card_placeholder_layout"
+import { PracticeCardPlaceholderLayout } from "@/practice/components/session/practice_card_placeholder_layout"
+import type { CaseLibraryDetailTab } from "@/practice/components/case_library/case_library_detail_tab_bar"
 import { PracticeCardEmptyLayout } from "@/practice/components/session/practice_card_empty_layout"
 import { PracticeErrorCodes } from "@/practice/practice_errors"
 import { useActiveLanguageMeta } from "@/practice/hooks/use_active_language"
@@ -38,6 +36,7 @@ export function SessionScreenLogic() {
   const ui = useSessionUi(session, representationTypes)
   const { notes: languageNotes, refresh: refreshLanguageNotes } = useLanguageNotes(repo, activeLanguageId)
   const [noteAttachBusy, setNoteAttachBusy] = useState(false)
+  const [practiceDetailTab, setPracticeDetailTab] = useState<CaseLibraryDetailTab>("entry")
   const { name: languageName, icon: languageIcon } = useActiveLanguageMeta()
   const [languageOpen, setLanguageOpen] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
@@ -148,6 +147,20 @@ export function SessionScreenLogic() {
     [attachCaseId, refreshLanguageNotes, repo, session],
   )
 
+  const handleDetachNote = useCallback(
+    async (noteId: string) => {
+      if (!attachCaseId) return false
+      setNoteAttachBusy(true)
+      const result = await repo.unlinkCaseNote(attachCaseId, noteId)
+      setNoteAttachBusy(false)
+      if (!result.ok) return false
+      await session.reloadQueue()
+      await refreshLanguageNotes()
+      return true
+    },
+    [attachCaseId, refreshLanguageNotes, repo, session],
+  )
+
   const categoryModal = (
     <CategoryFilterModal
       open={categoryOpen}
@@ -190,6 +203,10 @@ export function SessionScreenLogic() {
           : []
       }
       onVocabularyChange={() => void session.reloadQueue()}
+      onNavigateToNote={({ noteId, linkCaseId }) => {
+        setLibraryNoteId(noteId)
+        setLibraryLinkCaseId(linkCaseId)
+      }}
     />
   )
 
@@ -205,6 +222,14 @@ export function SessionScreenLogic() {
   const totalCases = readyState?.totalCases ?? totalLanguageCases
   const onFront = phase === "front"
   const card = session.currentCard
+
+  useEffect(() => {
+    setPracticeDetailTab("entry")
+  }, [card?.id])
+
+  useEffect(() => {
+    if (ui.editingCase && practiceDetailTab === "notes") setPracticeDetailTab("entry")
+  }, [practiceDetailTab, ui.editingCase])
   const deckEmpty =
     forcedEmpty || (sessionReady && (totalCases === 0 || card === null))
   const showPracticeCard = sessionReady && !deckEmpty && card !== null
@@ -228,19 +253,21 @@ export function SessionScreenLogic() {
           <PracticeCardPlaceholderLayout />
         )
 
-  const notesSlot = showPracticeCard && card && !ui.editingCase ? (
-    <CaseNoteAttachField
-      notes={card.notes}
-      languageNotes={languageNotes}
-      disabled={ui.saving || noteAttachBusy}
-      attaching={noteAttachBusy}
-      onOpenNote={(noteId) => openLibrary({ tab: "notes", noteId, linkCaseId: card.id })}
-      onAttach={handleAttachNote}
-      onCreateAndAttach={handleCreateAndAttachNote}
-    />
-  ) : (
-    <PracticeNotesPlaceholder />
-  )
+  const notesPanel =
+    showPracticeCard && card && !ui.editingCase ? (
+      <CaseNoteAttachField
+        notes={card.notes}
+        languageNotes={languageNotes}
+        disabled={ui.saving || noteAttachBusy}
+        attaching={noteAttachBusy}
+        onOpenNote={(noteId) => openLibrary({ tab: "notes", noteId, linkCaseId: card.id })}
+        onAttach={handleAttachNote}
+        onCreateAndAttach={handleCreateAndAttachNote}
+        onDetach={handleDetachNote}
+      />
+    ) : (
+      <p className="text-sm text-muted">Finish editing the entry to manage notes.</p>
+    )
 
   const sessionBanner =
     sessionError && sessionError.code !== PracticeErrorCodes.NoCards ? (
@@ -379,7 +406,10 @@ export function SessionScreenLogic() {
         onReveal={session.revealAnswer}
         onGrade={(grade) => void session.submitGrade(grade)}
         grading={session.gradingCase}
-        caseNotes={notesSlot}
+        tab={practiceDetailTab}
+        onTab={setPracticeDetailTab}
+        notesCount={card?.notes.length ?? 0}
+        notesPanel={notesPanel}
         overlays={
           <OverlaysLayout
             createOpen={false}

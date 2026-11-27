@@ -21,6 +21,7 @@ type CaseLibraryDrawerProps = {
   readonly initialNoteId?: string | null
   readonly linkCaseId?: string | null
   readonly attachedNoteIds?: readonly string[]
+  readonly onNavigateToNote?: (options: { readonly noteId: string; readonly linkCaseId: string }) => void
 }
 
 export function CaseLibraryDrawer(props: CaseLibraryDrawerProps) {
@@ -38,6 +39,7 @@ export function CaseLibraryDrawer(props: CaseLibraryDrawerProps) {
     initialNoteId,
     linkCaseId,
     attachedNoteIds,
+    onNavigateToNote,
   } = props
 
   return (
@@ -55,6 +57,7 @@ export function CaseLibraryDrawer(props: CaseLibraryDrawerProps) {
       initialNoteId={initialNoteId}
       linkCaseId={linkCaseId}
       attachedNoteIds={attachedNoteIds}
+      onNavigateToNote={onNavigateToNote}
     />
   )
 }

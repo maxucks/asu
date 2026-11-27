@@ -3,13 +3,17 @@ import type { AssocRow } from "@/practice/components/assoc/list_layout"
 import { AssocTextFormLayout } from "@/practice/components/assoc/text_form_layout"
 import { AssocUrlFormLayout } from "@/practice/components/assoc/url_form_layout"
 import { CaseCategoryField } from "@/practice/components/category/case_category_field"
+import type { CaseLibraryDetailTab } from "@/practice/components/case_library/case_library_detail_tab_bar"
 import { CaseLibraryDetailLayout } from "@/practice/components/case_library/case_library_detail_layout"
+import { CaseNoteAttachField } from "@/practice/components/notes/case_note_attach_field"
 import { ConfirmBox } from "@/practice/components/session/confirm_box"
 import { useCaseDetailController } from "@/practice/hooks/use_case_detail_controller"
 import { useCaseDetailUi } from "@/practice/hooks/use_case_detail_ui"
+import { useLanguageNotes } from "@/practice/hooks/use_language_notes"
 import type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source"
 import type { CategoryDto, PracticeCardDto, PracticeRepository } from "@/practice/practice_repository"
 import { associationKindLabel } from "@/practice/practice_utils"
+import { useCallback, useEffect, useState } from "react"
 
 type CaseLibraryDetailProps = {
   readonly card: PracticeCardDto
@@ -20,6 +24,7 @@ type CaseLibraryDetailProps = {
   readonly onDeleted: () => void
   readonly onCategoriesMetaChange: () => void
   readonly representationTypes: readonly RepresentationTypeDto[]
+  readonly onOpenLinkedNote?: (noteId: string) => void
 }
 
 export function CaseLibraryDetail({
@@ -31,9 +36,60 @@ export function CaseLibraryDetail({
   onDeleted,
   onCategoriesMetaChange,
   representationTypes,
+  onOpenLinkedNote,
 }: CaseLibraryDetailProps) {
   const detail = useCaseDetailController(repo, card, onCardChange, onDeleted)
   const ui = useCaseDetailUi(detail, representationTypes)
+  const { notes: languageNotes, refresh: refreshLanguageNotes } = useLanguageNotes(repo, languageId)
+  const [detailTab, setDetailTab] = useState<CaseLibraryDetailTab>("entry")
+  const [noteAttachBusy, setNoteAttachBusy] = useState(false)
+
+  useEffect(() => {
+    setDetailTab("entry")
+  }, [card.id])
+
+  useEffect(() => {
+    if (ui.editingCase && detailTab === "notes") setDetailTab("entry")
+  }, [detailTab, ui.editingCase])
+
+  const handleAttachNote = useCallback(
+    async (noteId: string) => {
+      setNoteAttachBusy(true)
+      const result = await repo.linkCaseNote(card.id, { noteId })
+      setNoteAttachBusy(false)
+      if (!result.ok) return false
+      onCardChange(result.value)
+      await refreshLanguageNotes()
+      return true
+    },
+    [card.id, onCardChange, refreshLanguageNotes, repo],
+  )
+
+  const handleCreateAndAttachNote = useCallback(
+    async (name: string, content: string) => {
+      setNoteAttachBusy(true)
+      const result = await repo.linkCaseNote(card.id, { name, content })
+      setNoteAttachBusy(false)
+      if (!result.ok) return false
+      onCardChange(result.value)
+      await refreshLanguageNotes()
+      return true
+    },
+    [card.id, onCardChange, refreshLanguageNotes, repo],
+  )
+
+  const handleDetachNote = useCallback(
+    async (noteId: string) => {
+      setNoteAttachBusy(true)
+      const result = await repo.unlinkCaseNote(card.id, noteId)
+      setNoteAttachBusy(false)
+      if (!result.ok) return false
+      onCardChange(result.value)
+      await refreshLanguageNotes()
+      return true
+    },
+    [card.id, onCardChange, refreshLanguageNotes, repo],
+  )
 
   const showAdd = ui.editor === null && !ui.editingCase
   const associationSortable = showAdd && !ui.editingCase
@@ -95,6 +151,22 @@ export function CaseLibraryDetail({
       />
     ) : null
 
+  const notesPanel =
+    !ui.editingCase ? (
+      <CaseNoteAttachField
+        notes={detail.card.notes}
+        languageNotes={languageNotes}
+        disabled={ui.saving || noteAttachBusy || detail.categoriesBusy}
+        attaching={noteAttachBusy}
+        onOpenNote={(noteId) => onOpenLinkedNote?.(noteId)}
+        onAttach={handleAttachNote}
+        onCreateAndAttach={handleCreateAndAttachNote}
+        onDetach={handleDetachNote}
+      />
+    ) : (
+      <p className="text-sm text-muted">Finish editing the entry to manage notes.</p>
+    )
+
   return (
     <aside className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
@@ -123,6 +195,10 @@ export function CaseLibraryDetail({
           onPick={ui.pickAssoc}
           sortable={associationSortable}
           onReorder={(ids) => void detail.reorderAssociations(ids)}
+          tab={detailTab}
+          onTab={setDetailTab}
+          notesCount={detail.card.notes.length}
+          notesPanel={notesPanel}
           caseCategories={
             !ui.editingCase ? (
               <CaseCategoryField
