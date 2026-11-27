@@ -1,0 +1,15 @@
+---
+description: Search for existing components and logic before adding UI; extend ui_kit and shared case layouts.
+alwaysApply: true
+---
+
+# Reuse first, then implement
+
+Before new UI or duplicated layout logic:
+
+1. **Search** `core/components/ui_kit/`, `core/components/atoms/`, `core/utils/`, and the feature folder for the same pattern (search fields, grids, modals, filters).
+2. **Extend** an existing component or shared layout (`CaseEntryLayout`, `AssocListLayout`, `assoc_row_views`) instead of copying JSX into a second screen.
+3. **Promote** when a control appears twice: move to `core/components/ui_kit/` (generic) or `practice/components/{domain}/` (vocabulary-specific), document in `ui_kit/README.md`.
+4. **Avoid** parallel layout files for the same shell (practice card vs library detail should share `CaseEntryLayout` + `CaseEntryAssociationsRegion`).
+
+Association cue UI must go through **`AssocListLayout`** and shared edit/add helpers in **`assoc_row_views.tsx`** unless there is a documented exception.

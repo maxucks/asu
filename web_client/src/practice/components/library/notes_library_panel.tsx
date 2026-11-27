@@ -1,6 +1,8 @@
 "use client"
 
+import { filterBySubstringSearch } from "@/core/utils/search_query"
 import { LibraryEmptyHint } from "@/practice/components/library/library_empty_hint"
+import { LibraryListSearchField } from "@/practice/components/library/library_list_search_field"
 import { NotesAddControl } from "@/practice/components/notes/notes_add_control"
 import { NotesDetail } from "@/practice/components/notes/notes_detail"
 import { NotesTile } from "@/practice/components/notes/notes_tile"
@@ -159,6 +161,15 @@ type NotesLibraryPanelBodyProps = {
 }
 
 function NotesLibraryPanelBody(props: NotesLibraryPanelBodyProps) {
+  const [query, setQuery] = useState("")
+
+  const filteredNotes = useMemo(
+    () => filterBySubstringSearch(props.notes, query, (note) => [note.name, note.content]),
+    [props.notes, query],
+  )
+
+  const showSearch = props.notes.length > 0 || query.trim().length > 0
+
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <section
@@ -173,9 +184,20 @@ function NotesLibraryPanelBody(props: NotesLibraryPanelBodyProps) {
               hint="Use Add note in the header to create one."
             />
           ) : null}
-          {props.notes.length > 0 ? (
+          {!props.loading && showSearch ? (
+            <LibraryListSearchField
+              value={query}
+              onChange={setQuery}
+              placeholder="Search notes…"
+              className="mb-3"
+            />
+          ) : null}
+          {!props.loading && props.notes.length > 0 && filteredNotes.length === 0 ? (
+            <p className="text-sm text-muted">No notes match your search.</p>
+          ) : null}
+          {filteredNotes.length > 0 ? (
             <ul className="flex flex-col gap-2">
-              {props.notes.map((note) => (
+              {filteredNotes.map((note) => (
                 <li key={note.id}>
                   <NotesTile
                     note={note}

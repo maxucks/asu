@@ -18,7 +18,13 @@ import type { PracticeGradeDto, PracticeCardDto } from "@/practice/practice_repo
 import { PracticeGrades } from "@/practice/practice_repository"
 import { parseCaseValue, parseCaseMeaning } from "@/practice/practice_model"
 import type { PracticeRepository } from "@/practice/practice_repository"
+import type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source"
 import type { StudyRecordDto } from "@/core/data_sources/http_study_record_data_source"
+import {
+  resolvePracticeCardsForMode,
+  type PracticeSessionMode,
+  type TypingInputTarget,
+} from "@/practice/practice_typing_targets"
 import {
   applyPracticeGrade,
   buildPracticePackRound,
@@ -37,6 +43,7 @@ import {
   createPracticeSessionViewStateWithReplacedCard,
   createPracticeSessionViewStateWithSessionAssociationPatched,
   createPracticeSessionViewStateWithToggledRevealedHidden,
+  createPracticeSessionViewStateWithTypingFeedback,
   createPracticeSessionViewStateWithoutSessionAssociation,
   createSessionAssociation,
   isAssociationOnCard,
@@ -44,7 +51,7 @@ import {
   mergeVisibleAssociations,
   selectCurrentCard,
   selectCurrentCaseId,
-  selectFrontCaseId,
+  type PracticeSessionPhase,
   type PracticeSessionViewState,
 } from "@/practice/practice_session_view_state"
 
@@ -52,10 +59,17 @@ function isPracticeGrade(value: string): value is PracticeGradeDto {
   return (PracticeGrades as readonly string[]).includes(value)
 }
 
+export type PracticeSessionConfig = {
+  readonly practiceMode: PracticeSessionMode
+  readonly typingTarget: TypingInputTarget
+  readonly representationTypes: readonly RepresentationTypeDto[]
+}
+
 export function usePracticeSessionController(
   practiceRepository: PracticeRepository,
   languageId: string,
   categoryId: string | null,
+  sessionConfig: PracticeSessionConfig,
 ) {
   const [state, setState] = useState<PracticeSessionViewState>(createPracticeSessionViewStateLoading())
   const [savingAssociation, setSavingAssociation] = useState<AssociationComposeMode | null>(null)
@@ -67,7 +81,19 @@ export function usePracticeSessionController(
   const [categoriesBusy, setCategoriesBusy] = useState(false)
   const stateRef = useRef(state)
   stateRef.current = state
+  const sessionConfigRef = useRef(sessionConfig)
+  sessionConfigRef.current = sessionConfig
   const studyRecordsRef = useRef<Map<string, StudyRecordDto>>(new Map())
+
+  const cardsForSession = useCallback(
+    (dtos: readonly PracticeCardDto[]) => {
+      const all = dtos.map((dto) => PracticeCard.fromDto(dto))
+      return [
+        ...resolvePracticeCardsForMode(all, sessionConfig.practiceMode, sessionConfig.typingTarget),
+      ]
+    },
+    [sessionConfig.practiceMode, sessionConfig.typingTarget],
+  )
 
   const syncStudyRecordsMap = useCallback((records: readonly StudyRecordDto[]) => {
     studyRecordsRef.current = studyRecordsToMap(records)
@@ -98,7 +124,7 @@ export function usePracticeSessionController(
       return false
     }
 
-    const cards = listResult.value.cards.map((dto) => PracticeCard.fromDto(dto))
+    const cards = cardsForSession(listResult.value.cards)
     syncStudyRecordsMap(recordsResult.value)
 
     const caseIds = cards.map((card) => card.id)
@@ -106,7 +132,7 @@ export function usePracticeSessionController(
 
     if (cards.length === 0 || playQueue.length === 0) {
       setState(
-        createPracticeSessionViewStateReady(cards, 0, "front", [], [], 0, cards.length, {
+        createPracticeSessionViewStateReady(cards, 0, "front", [], [], 0, cards.length, null, {
           playQueue: [],
           playQueueIndex: 0,
           packRound: 1,
@@ -116,14 +142,14 @@ export function usePracticeSessionController(
     }
 
     setState(
-      createPracticeSessionViewStateReady(cards, 0, "front", [], [], 0, cards.length, {
+      createPracticeSessionViewStateReady(cards, 0, "front", [], [], 0, cards.length, null, {
         playQueue,
         playQueueIndex: 0,
         packRound: 1,
       }),
     )
     return true
-  }, [categoryId, languageId, practiceRepository, syncStudyRecordsMap])
+  }, [cardsForSession, categoryId, languageId, practiceRepository, syncStudyRecordsMap])
 
   useEffect(() => {
     let cancelled = false
@@ -150,7 +176,7 @@ export function usePracticeSessionController(
 
   const runOnCurrentCard = useCallback(
     async (save: (caseId: string) => Promise<Result<PracticeCardDto, PracticeError>>): Promise<boolean> => {
-      const caseId = selectFrontCaseId(stateRef.current)
+      const caseId = selectCurrentCaseId(stateRef.current)
       if (!caseId) return false
 
       const result = await save(caseId)
@@ -189,12 +215,12 @@ export function usePracticeSessionController(
     })
   }, [])
 
-  const submitGrade = useCallback(
-    async (grade: PracticeGradeDto) => {
+  const advanceAfterGrade = useCallback(
+    async (grade: PracticeGradeDto, phaseAtGrade: PracticeSessionPhase) => {
       if (!isPracticeGrade(grade)) return
 
       const ready = stateRef.current
-      if (!isPracticeSessionReadyViewState(ready) || ready.phase !== "back") return
+      if (!isPracticeSessionReadyViewState(ready) || ready.phase !== phaseAtGrade) return
 
       const caseId = selectCurrentCaseId(ready)
       if (!caseId) return
@@ -213,7 +239,7 @@ export function usePracticeSessionController(
       studyRecordsRef.current.set(caseId, updatedRecord)
 
       setState((prev) => {
-        if (!isPracticeSessionReadyViewState(prev) || prev.phase !== "back") return prev
+        if (!isPracticeSessionReadyViewState(prev) || prev.phase !== phaseAtGrade) return prev
 
         let queue = injectPracticePackGradeRepeats(
           prev.playQueue,
@@ -233,7 +259,7 @@ export function usePracticeSessionController(
         }
 
         if (queue.length === 0) {
-          return createPracticeSessionViewStateReady(prev.cards, 0, "front", [], [], prev.passedCount + 1, 0, {
+          return createPracticeSessionViewStateReady(prev.cards, 0, "front", [], [], prev.passedCount + 1, 0, null, {
             playQueue: [],
             playQueueIndex: 0,
             packRound,
@@ -251,6 +277,48 @@ export function usePracticeSessionController(
     },
     [ensureStudyRecord, practiceRepository],
   )
+
+  const submitGrade = useCallback(
+    (grade: PracticeGradeDto) => advanceAfterGrade(grade, "back"),
+    [advanceAfterGrade],
+  )
+
+  const acceptTypingAnswer = useCallback(() => {
+    const config = sessionConfigRef.current
+    if (config.practiceMode !== "typing") return
+
+    setState((prev) => {
+      if (!isPracticeSessionReadyViewState(prev) || prev.phase !== "front") return prev
+      return createPracticeSessionViewStateWithTypingFeedback(prev, true)
+    })
+  }, [])
+
+  const skipTypingAnswer = useCallback(() => {
+    const config = sessionConfigRef.current
+    if (config.practiceMode !== "typing") return
+
+    setState((prev) => {
+      if (!isPracticeSessionReadyViewState(prev) || prev.phase !== "front") return prev
+      return createPracticeSessionViewStateWithTypingFeedback(prev, false)
+    })
+  }, [])
+
+  const continueAfterTyping = useCallback(async () => {
+    const config = sessionConfigRef.current
+    if (config.practiceMode !== "typing") return
+
+    const ready = stateRef.current
+    if (
+      !isPracticeSessionReadyViewState(ready) ||
+      ready.phase !== "back" ||
+      ready.typingCheckCorrect === null
+    ) {
+      return
+    }
+
+    const grade: PracticeGradeDto = ready.typingCheckCorrect ? "easy" : "hard"
+    await advanceAfterGrade(grade, "back")
+  }, [advanceAfterGrade])
 
   const setCaseCategories = useCallback(
     async (caseId: string, categoryIds: readonly string[]) => {
@@ -311,6 +379,7 @@ export function usePracticeSessionController(
               revealed,
               prev.passedCount,
               prev.totalCases,
+              prev.typingCheckCorrect,
               {
                 playQueue: prev.playQueue,
                 playQueueIndex: prev.playQueueIndex,
@@ -338,6 +407,7 @@ export function usePracticeSessionController(
           revealed,
           patched.passedCount,
           patched.totalCases,
+          patched.typingCheckCorrect,
           {
             playQueue: patched.playQueue,
             playQueueIndex: patched.playQueueIndex,
@@ -441,7 +511,7 @@ export function usePracticeSessionController(
 
     syncStudyRecordsMap(recordsResult.value)
 
-    const cards = listResult.value.cards.map((dto) => PracticeCard.fromDto(dto))
+    const cards = cardsForSession(listResult.value.cards)
     const totalCases = cards.length
     const caseIds = cards.map((card) => card.id)
     const playQueue = buildPracticePackRound(caseIds, studyRecordsRef.current)
@@ -449,13 +519,13 @@ export function usePracticeSessionController(
     setState((prev) => {
       if (!isPracticeSessionReadyViewState(prev)) {
         if (totalCases === 0) {
-          return createPracticeSessionViewStateReady([], 0, "front", [], [], 0, 0, {
+          return createPracticeSessionViewStateReady([], 0, "front", [], [], 0, 0, null, {
             playQueue: [],
             playQueueIndex: 0,
             packRound: 1,
           })
         }
-        return createPracticeSessionViewStateReady(cards, 0, "front", [], [], 0, totalCases, {
+        return createPracticeSessionViewStateReady(cards, 0, "front", [], [], 0, totalCases, null, {
           playQueue,
           playQueueIndex: 0,
           packRound: 1,
@@ -482,7 +552,7 @@ export function usePracticeSessionController(
       return createPracticeSessionViewStateAfterVocabularyReload(prev, cards, totalCases, nextPack)
     })
     return true
-  }, [categoryId, practiceRepository, languageId, syncStudyRecordsMap])
+  }, [cardsForSession, categoryId, practiceRepository, languageId, syncStudyRecordsMap])
 
   const reloadPracticeSession = useCallback(async () => bootstrapSession(), [bootstrapSession])
 
@@ -585,6 +655,9 @@ export function usePracticeSessionController(
     visibleAssociations,
     revealedHiddenAssociationIds,
     revealAnswer,
+    acceptTypingAnswer,
+    skipTypingAnswer,
+    continueAfterTyping,
     submitGrade,
     addSessionAssociation,
     addTextAssociation,

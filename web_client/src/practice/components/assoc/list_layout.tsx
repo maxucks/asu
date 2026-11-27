@@ -9,6 +9,9 @@ import { reorderAssociationIds } from "@/practice/practice_utils"
 import type { ReactNode } from "react"
 import { useCallback, useState } from "react"
 
+/** Shared with loading placeholders and library preview tiles. */
+export const assocListGridClassName = "grid grid-cols-2 gap-px bg-grid-line"
+
 export type AssocRow = {
   readonly association: PracticeAssociation
   readonly flags: AssocFlags
@@ -25,6 +28,8 @@ export type AssocRow = {
 type AssocListLayoutProps = {
   readonly rows: readonly AssocRow[]
   readonly showAdd: boolean
+  /** When true, the add cell stays visible but cannot be opened (e.g. review step on an empty card). */
+  readonly addMenuDisabled?: boolean
   readonly saving: boolean
   readonly addText: ReactNode
   readonly addUrl: ReactNode
@@ -37,6 +42,7 @@ type AssocListLayoutProps = {
 export function AssocListLayout({
   rows,
   showAdd,
+  addMenuDisabled = false,
   saving,
   addText,
   addUrl,
@@ -62,7 +68,7 @@ export function AssocListLayout({
   )
 
   return (
-    <ul className="grid grid-cols-2 gap-px bg-grid-line">
+    <ul className={assocListGridClassName}>
       {rows.map((row) => {
         if (row.flags.editing && row.flags.compose === "text") {
           return (
@@ -137,7 +143,7 @@ export function AssocListLayout({
       {addUrl ? <li className="col-span-2 bg-card">{addUrl}</li> : null}
       {showAdd ? (
         <li className="min-w-0 bg-card">
-          <AddMenu disabled={saving} onPick={onPick} />
+          <AddMenu disabled={saving || addMenuDisabled} onPick={onPick} />
         </li>
       ) : null}
     </ul>

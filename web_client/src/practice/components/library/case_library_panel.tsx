@@ -1,6 +1,9 @@
 "use client"
 
+import { filterBySubstringSearch } from "@/core/utils/search_query"
 import { LibraryEmptyHint } from "@/practice/components/library/library_empty_hint"
+import { LibraryCategoryFilter } from "@/practice/components/library/library_category_filter"
+import { LibraryListSearchField } from "@/practice/components/library/library_list_search_field"
 import { CaseLibraryAddCaseControl } from "@/practice/components/case_library/case_library_add_case_control"
 import { CaseLibraryDetail } from "@/practice/components/case_library/case_library_detail"
 import { CaseLibraryTile } from "@/practice/components/case_library/case_library_tile"
@@ -13,7 +16,7 @@ import type { CaseRepresentationWrite } from "@/core/data_sources/http_case_data
 import type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source"
 import { representationWritesFromDrafts } from "@/practice/practice_representation"
 import type { CategoryDto, PracticeCardDto, PracticeRepository } from "@/practice/practice_repository"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 function resolveSelectedCaseId(cards: readonly PracticeCardDto[], languageId: string, preferId?: string | null): string | null {
   if (cards.length === 0) return null
@@ -185,6 +188,29 @@ type CaseLibraryPanelBodyProps = {
 }
 
 function CaseLibraryPanelBody(props: CaseLibraryPanelBodyProps) {
+  const [query, setQuery] = useState("")
+  const [categoryFilterId, setCategoryFilterId] = useState<string | null>(null)
+
+  const categoryFilteredCards = useMemo(() => {
+    if (!categoryFilterId) return props.cards
+    return props.cards.filter((card) => card.categories.some((category) => category.id === categoryFilterId))
+  }, [categoryFilterId, props.cards])
+
+  const filteredCards = useMemo(
+    () =>
+      filterBySubstringSearch(categoryFilteredCards, query, (card) => [
+        card.value,
+        card.meaning ?? "",
+        ...card.categories.map((category) => category.name),
+        ...card.representations.map((representation) => representation.value),
+        ...card.representations.map((representation) => representation.representationTypeName),
+      ]),
+    [categoryFilteredCards, query],
+  )
+
+  const showSearch =
+    props.cards.length > 0 || query.trim().length > 0 || categoryFilterId !== null
+
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <section className={`flex min-h-0 flex-col ${props.splitView ? "w-1/2 min-w-0 border-r border-grid-line" : "w-full"}`}>
@@ -197,9 +223,29 @@ function CaseLibraryPanelBody(props: CaseLibraryPanelBodyProps) {
               hint="Use Add case in the header to create one."
             />
           ) : null}
-          {props.cards.length > 0 ? (
+          {!props.loading && showSearch ? (
+            <div className="mb-3 flex items-center gap-2">
+              <LibraryListSearchField
+                value={query}
+                onChange={setQuery}
+                placeholder="Search words…"
+                className="min-w-0 flex-1"
+              />
+              <LibraryCategoryFilter
+                categories={props.categories}
+                activeCategoryId={categoryFilterId}
+                onActiveCategoryId={setCategoryFilterId}
+              />
+            </div>
+          ) : null}
+          {!props.loading && props.cards.length > 0 && filteredCards.length === 0 ? (
+            <p className="text-sm text-muted">
+              {categoryFilterId || query.trim() ? "No words match your filters." : "No words match your search."}
+            </p>
+          ) : null}
+          {filteredCards.length > 0 ? (
             <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {props.cards.map((card) => (
+              {filteredCards.map((card) => (
                 <li key={card.id}>
                   <CaseLibraryTile
                     card={card}

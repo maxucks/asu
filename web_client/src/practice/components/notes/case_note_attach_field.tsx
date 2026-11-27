@@ -1,5 +1,10 @@
 "use client"
 
+import {
+  canCreateNewFromSearchQuery,
+  filterBySubstringSearch,
+  findByExactSearchName,
+} from "@/core/utils/search_query"
 import { CategorySuggestionList } from "@/practice/components/category/category_suggestion_list"
 import { CaseAttachedNotesList } from "@/practice/components/notes/case_attached_notes_list"
 import { NoteAddStepperControl } from "@/practice/components/notes/note_add_stepper_control"
@@ -46,18 +51,16 @@ export function CaseNoteAttachField({
     [attachedIds, languageNotes],
   )
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (q.length === 0) return pickable
-    return pickable.filter(
-      (note) => note.name.toLowerCase().includes(q) || note.content.toLowerCase().includes(q),
-    )
-  }, [pickable, query])
+  const filtered = useMemo(
+    () => filterBySubstringSearch(pickable, query, (note) => [note.name, note.content]),
+    [pickable, query],
+  )
 
   const queryTrim = query.trim()
-  const canCreateFromQuery =
-    queryTrim.length > 0 &&
-    !languageNotes.some((note) => note.name.toLowerCase() === queryTrim.toLowerCase())
+  const canCreateFromQuery = canCreateNewFromSearchQuery(
+    query,
+    languageNotes.map((note) => note.name),
+  )
 
   const closePicker = useCallback(() => {
     setListOpen(false)
@@ -145,8 +148,7 @@ export function CaseNoteAttachField({
                   }
                   if (e.key === "Enter") {
                     e.preventDefault()
-                    const q = query.trim().toLowerCase()
-                    const exact = pickable.find((note) => note.name.toLowerCase() === q)
+                    const exact = findByExactSearchName(pickable, query, (note) => note.name)
                     if (exact) void onAttach(exact.id).then((ok) => ok && closePicker())
                     else if (canCreateFromQuery) startCreateFromQuery({ openContentStep: true })
                     else if (filtered[0]) void onAttach(filtered[0].id).then((ok) => ok && closePicker())

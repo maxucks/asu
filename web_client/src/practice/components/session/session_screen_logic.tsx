@@ -2,20 +2,30 @@ import { assocFlags } from "@/practice/assoc_flags"
 import { CaseLibraryDrawer } from "@/practice/components/case_library/case_library_drawer"
 import { LanguageSwitchModal } from "@/practice/components/language/language_switch_modal"
 import type { AssocRow } from "@/practice/components/assoc/list_layout"
-import { AssocTextFormLayout } from "@/practice/components/assoc/text_form_layout"
-import { AssocUrlFormLayout } from "@/practice/components/assoc/url_form_layout"
+import {
+  associationAddImageUrlView,
+  associationAddTextView,
+  associationEditViews,
+} from "@/practice/components/assoc/assoc_row_views"
 import { OverlaysLayout } from "@/practice/components/session/overlays_layout"
 import { ShellLayout } from "@/practice/components/session/shell_layout"
 import { PracticeCardPlaceholderLayout } from "@/practice/components/session/practice_card_placeholder_layout"
 import type { CaseLibraryDetailTab } from "@/practice/components/case_library/case_library_detail_tab_bar"
 import { LibraryFab } from "@/practice/components/notes/notes_fab"
+import { usePracticeHotkeyBindings } from "@/practice/hooks/use_practice_hotkey_bindings"
 import { PracticeCardEmptyLayout } from "@/practice/components/session/practice_card_empty_layout"
 import { PracticeErrorCodes } from "@/practice/practice_errors"
 import { useActiveLanguageMeta } from "@/practice/hooks/use_active_language"
 import { usePractice } from "@/practice/hooks/use_practice"
+import { PracticeModeControls } from "@/practice/components/session/practice_mode_controls"
+import { TypingFooterLayout } from "@/practice/components/session/typing_footer_layout"
+import { TypingReviewFooterLayout } from "@/practice/components/session/typing_review_footer_layout"
+import { usePracticeModePreference } from "@/practice/hooks/use_practice_mode_preference"
 import { useRepresentationTypes } from "@/practice/hooks/use_representation_types"
 import { useSessionUi } from "@/practice/hooks/use_session_ui"
+import { PracticeCard } from "@/practice/practice_model"
 import { usePracticeSessionController } from "@/practice/practice_session_controller"
+import { expectedStringForTypingTarget, typingTargetLabel } from "@/practice/practice_typing_targets"
 import {
   isAssociationOnCard,
   isPracticeSessionReadyViewState,
@@ -25,15 +35,42 @@ import { CategoryFilterModal } from "@/practice/components/category/category_fil
 import { CaseNoteAttachField } from "@/practice/components/notes/case_note_attach_field"
 import { useLanguageNotes } from "@/practice/hooks/use_language_notes"
 import type { LibraryTab } from "@/practice/components/library/library_tab_bar"
+import { PracticeCaseContextDisplay } from "@/practice/components/case/practice_case_context_display"
 import { CaseCategoryField } from "@/practice/components/category/case_category_field"
-import type { CategoryDto } from "@/practice/practice_repository"
-import { useCallback, useEffect, useState } from "react"
+import { usePracticeEntryContextPreference } from "@/practice/hooks/use_practice_entry_context_preference"
+import type { CategoryDto, PracticeGradeDto } from "@/practice/practice_repository"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 export function SessionScreenLogic() {
   const { repo, activeLanguageId, setActiveLanguageId, activeCategoryId, setActiveCategoryId } = usePractice()
-  const session = usePracticeSessionController(repo, activeLanguageId, activeCategoryId)
   const { types: representationTypes } = useRepresentationTypes(repo, activeLanguageId)
+  const { practiceMode, setPracticeMode, typingTarget, setTypingTarget } = usePracticeModePreference(
+    activeLanguageId,
+    representationTypes,
+  )
+  const sessionConfig = useMemo(
+    () => ({
+      practiceMode,
+      typingTarget,
+      representationTypes,
+    }),
+    [practiceMode, representationTypes, typingTarget],
+  )
+  const session = usePracticeSessionController(repo, activeLanguageId, activeCategoryId, sessionConfig)
   const ui = useSessionUi(session, representationTypes)
+
+  const entryContextCard = useMemo(() => {
+    const current = session.currentCard
+    if (!current) return null
+    return {
+      value: current.value,
+      meaning: current.meaning,
+      representations: current.representations,
+    }
+  }, [session.currentCard])
+
+  const { selection: entryContextSelection, setSelection: setEntryContextSelection } =
+    usePracticeEntryContextPreference(activeLanguageId, representationTypes, entryContextCard)
   const { notes: languageNotes, refresh: refreshLanguageNotes } = useLanguageNotes(repo, activeLanguageId)
   const [noteAttachBusy, setNoteAttachBusy] = useState(false)
   const [practiceDetailTab, setPracticeDetailTab] = useState<CaseLibraryDetailTab>("entry")
@@ -47,6 +84,18 @@ export function SessionScreenLogic() {
   const [categories, setCategories] = useState<readonly CategoryDto[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(false)
   const [totalLanguageCases, setTotalLanguageCases] = useState(0)
+  const [vocabularyCards, setVocabularyCards] = useState<readonly PracticeCard[]>([])
+
+  const refreshVocabularyForPractice = useCallback(async () => {
+    const list = await repo.listCases(activeLanguageId, activeCategoryId)
+    if (list.ok) {
+      setVocabularyCards(list.value.cards.map((dto) => PracticeCard.fromDto(dto)))
+    }
+  }, [activeCategoryId, activeLanguageId, repo])
+
+  useEffect(() => {
+    void refreshVocabularyForPractice()
+  }, [refreshVocabularyForPractice])
 
   const refreshCategoryMeta = useCallback(async () => {
     setCategoriesLoading(true)
@@ -202,7 +251,10 @@ export function SessionScreenLogic() {
           ? session.currentCard.notes.map((note) => note.id)
           : []
       }
-      onVocabularyChange={() => void session.reloadQueue()}
+      onVocabularyChange={() => {
+        void session.reloadQueue()
+        void refreshVocabularyForPractice()
+      }}
       onNavigateToNote={({ noteId, linkCaseId }) => {
         setLibraryNoteId(noteId)
         setLibraryLinkCaseId(linkCaseId)
@@ -239,9 +291,49 @@ export function SessionScreenLogic() {
   useEffect(() => {
     if (ui.editingCase && practiceDetailTab === "notes") setPracticeDetailTab("entry")
   }, [practiceDetailTab, ui.editingCase])
+
   const deckEmpty =
-    forcedEmpty || (sessionReady && (totalCases === 0 || packSize === 0 || card === null))
+    forcedEmpty || (sessionReady && (totalCases === 0 || packSize === 0))
   const showPracticeCard = sessionReady && !deckEmpty && card !== null
+
+  useEffect(() => {
+    const gradeByKey: Record<string, PracticeGradeDto> = {
+      "1": "hard",
+      "2": "medium",
+      "3": "easy",
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (practiceMode !== "associations" || ui.editingCase || ui.editor !== null || session.gradingCase) {
+        return
+      }
+      if (!showPracticeCard) return
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return
+      }
+
+      if (event.key === "Enter" && !event.isComposing) {
+        event.preventDefault()
+        if (phase === "front") {
+          session.revealAnswer()
+        } else if (phase === "back") {
+          void session.submitGrade(event.shiftKey ? "hard" : "easy")
+        }
+        return
+      }
+
+      if (phase !== "back") return
+
+      const grade = gradeByKey[event.key]
+      if (!grade) return
+
+      event.preventDefault()
+      void session.submitGrade(grade)
+    }
+
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [phase, practiceMode, session, showPracticeCard, ui.editingCase, ui.editor])
 
   const progressLabel = sessionLoading
     ? "Loading…"
@@ -251,6 +343,60 @@ export function SessionScreenLogic() {
         ? vocabularyCountLabel
         : "—"
 
+  const typingEmptyDetail =
+    practiceMode === "typing" && sessionReady && totalCases === 0
+      ? `No words with ${typingTargetLabel(typingTarget, representationTypes)} in this filter. Choose another type or add representations in the library.`
+      : undefined
+
+  const typingExpected =
+    card && practiceMode === "typing" ? expectedStringForTypingTarget(card, typingTarget) : null
+
+  const typingAwaitingNext =
+    practiceMode === "typing" &&
+    showPracticeCard &&
+    readyState?.phase === "back" &&
+    readyState.typingCheckCorrect !== null
+
+  usePracticeHotkeyBindings(
+    practiceMode,
+    phase,
+    showPracticeCard,
+    typingAwaitingNext,
+    ui.editingCase,
+  )
+
+  const answerFooter =
+    practiceMode === "typing" && showPracticeCard && onFront && typingExpected ? (
+      <TypingFooterLayout
+        cardKey={card.id}
+        expected={typingExpected}
+        target={typingTarget}
+        representationTypes={representationTypes}
+        disabled={ui.editingCase}
+        grading={session.gradingCase}
+        onComplete={() => session.acceptTypingAnswer()}
+        onSkip={() => session.skipTypingAnswer()}
+      />
+    ) : typingAwaitingNext ? (
+      <TypingReviewFooterLayout
+        disabled={ui.editingCase}
+        grading={session.gradingCase}
+        onNext={() => void session.continueAfterTyping()}
+      />
+    ) : undefined
+
+  const modeControls = (
+    <PracticeModeControls
+      practiceMode={practiceMode}
+      onPracticeMode={setPracticeMode}
+      typingTarget={typingTarget}
+      onTypingTarget={setTypingTarget}
+      representationTypes={representationTypes}
+      eligibleCards={vocabularyCards}
+      disabled={sessionLoading || ui.editingCase}
+    />
+  )
+
   const mainSlot = showPracticeCard
     ? undefined
     : deckEmpty && (sessionReady || forcedEmpty)
@@ -258,6 +404,7 @@ export function SessionScreenLogic() {
           <PracticeCardEmptyLayout
             categoryActive={activeCategoryId !== null}
             onClearCategory={() => setActiveCategoryId(null)}
+            detail={typingEmptyDetail}
           />
         )
       : (
@@ -296,6 +443,9 @@ export function SessionScreenLogic() {
 
   const managing = onFront && (ui.editor === null || ui.editor.intent === "edit") && !ui.adding && !ui.editingCase
   const associationSortable = managing && onFront && !ui.editingCase
+  const noAssociationCues = showPracticeCard && session.visibleAssociations.length === 0
+  const showAssociationAdd =
+    showPracticeCard && (onFront || noAssociationCues) && ui.editor === null && !ui.editingCase
 
   const rows: AssocRow[] = showPracticeCard
     ? session.visibleAssociations.map((association) => {
@@ -309,58 +459,60 @@ export function SessionScreenLogic() {
       onUnhide: () => void session.setAssociationHidden(association.id, false),
       onDelete: () => ui.setPendingAssocDelete({ id: association.id, label: associationKindLabel(association.kind) }),
       onReveal: () => session.toggleRevealHiddenAssociation(association.id),
-      textEdit: (
-        <AssocTextFormLayout
-          intent="edit"
-          initialValue={association.contentRef}
-          initialTileColor={association.tileColor}
-          saving={session.savingAssociation === "text"}
-          onCancel={() => ui.setEditor(null)}
-          onSave={(payload) =>
-            void ui.saveEditor(() =>
-              session.updateTextAssociation(association.id, payload.text, payload.tileColor),
-            )
-          }
-        />
-      ),
-      urlEdit: (
-        <AssocUrlFormLayout
-          intent="edit"
-          initialValue={association.contentRef}
-          saving={session.savingAssociation === "image_url"}
-          onCancel={() => ui.setEditor(null)}
-          onSave={(url) => void ui.saveEditor(() => session.updateImageAssociationFromUrl(association.id, url))}
-        />
-      ),
+      ...associationEditViews(association, {
+        textSaving: session.savingAssociation === "text",
+        imageUrlSaving: session.savingAssociation === "image_url",
+        onCancelEdit: () => ui.setEditor(null),
+        onSaveTextEdit: (associationId, payload) =>
+          void ui.saveEditor(() =>
+            session.updateTextAssociation(associationId, payload.text, payload.tileColor),
+          ),
+        onSaveImageUrlEdit: (associationId, url) =>
+          void ui.saveEditor(() => session.updateImageAssociationFromUrl(associationId, url)),
+      }),
     }
   })
     : []
 
+  const canComposeAssociation = onFront || noAssociationCues
+
+  const addHandlers = {
+    textSaving: session.savingAssociation === "text",
+    imageUrlSaving: session.savingAssociation === "image_url",
+    onCancelAdd: () => ui.setEditor(null),
+    onSaveAddText: (payload: { readonly text: string; readonly tileColor: string | null }) =>
+      void ui.saveEditor(() => session.addTextAssociation(payload.text, payload.tileColor)),
+    onSaveAddImageUrl: (url: string) => void ui.saveEditor(() => session.addImageAssociationFromUrl(url)),
+  }
+
   const addText =
-    showPracticeCard && onFront && ui.editor?.intent === "add" && ui.editor.mode === "text" ? (
-      <AssocTextFormLayout
-        saving={session.savingAssociation === "text"}
-        onCancel={() => ui.setEditor(null)}
-        onSave={(payload) =>
-          void ui.saveEditor(() => session.addTextAssociation(payload.text, payload.tileColor))
-        }
-      />
-    ) : null
+    showPracticeCard && canComposeAssociation && ui.editor?.intent === "add" && ui.editor.mode === "text"
+      ? associationAddTextView(addHandlers)
+      : null
 
   const addUrl =
-    showPracticeCard && onFront && ui.editor?.intent === "add" && ui.editor.mode === "image_url" ? (
-      <AssocUrlFormLayout
-        saving={session.savingAssociation === "image_url"}
-        onCancel={() => ui.setEditor(null)}
-        onSave={(url) => void ui.saveEditor(() => session.addImageAssociationFromUrl(url))}
+    showPracticeCard && canComposeAssociation && ui.editor?.intent === "add" && ui.editor.mode === "image_url"
+      ? associationAddImageUrlView(addHandlers)
+      : null
+
+  const practiceEntryContext =
+    showPracticeCard && card && !ui.editingCase ? (
+      <PracticeCaseContextDisplay
+        value={card.value}
+        meaning={card.meaning}
+        representations={card.representations}
+        representationTypes={representationTypes}
+        selection={entryContextSelection}
+        onSelection={setEntryContextSelection}
       />
-    ) : null
+    ) : undefined
 
   return (
     <>
       {languageModal}
         {practiceLibrary}
         {categoryModal}
+      {modeControls}
       <LibraryFab onOpen={() => openLibrary({ tab: "cases" })} />
       <ShellLayout
         languageIcon={languageIcon}
@@ -370,14 +522,16 @@ export function SessionScreenLogic() {
         {...headerCategoryProps}
         sessionBanner={sessionBanner}
         main={mainSlot}
+        answerFooter={answerFooter}
         footerDisabled={!showPracticeCard}
         onFront={onFront}
         editingCase={ui.editingCase}
         caseSaving={ui.caseSaving}
-        showAdd={showPracticeCard && onFront && ui.editor === null && !ui.editingCase}
+        showAdd={showAssociationAdd}
         saving={ui.saving}
         value={ui.valueDraft}
         meaning={ui.meaningDraft}
+        practiceEntryContext={practiceEntryContext}
         cardMeaning={card?.meaning ?? undefined}
         revealValue={card?.value}
         revealRepresentations={card?.representations}

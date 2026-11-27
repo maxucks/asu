@@ -1,0 +1,154 @@
+import { CaseEntryAssociationsRegion } from "@/practice/components/case/case_entry_associations_region"
+import { CaseFieldsLayout } from "@/practice/components/case/fields_layout"
+import { CaseValueRevealLayout } from "@/practice/components/case/case_value_reveal_layout"
+import {
+  CaseLibraryDetailTabBar,
+  type CaseLibraryDetailTab,
+} from "@/practice/components/case_library/case_library_detail_tab_bar"
+import { ToolbarLayout } from "@/practice/components/session/toolbar_layout"
+import type { AssociationAddAction } from "@/practice/practice_utils"
+import type { CaseRepresentationDto } from "@/core/data_sources/http_case_data_source"
+import type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source"
+import type { AssocRow } from "@/practice/components/assoc/list_layout"
+import type { ReactNode } from "react"
+
+export type CaseEntryLayoutProps = {
+  readonly shellClassName: string
+  readonly toolbarVariant: "practice" | "library"
+  readonly onFront?: boolean
+  readonly caseTitle?: string
+  readonly editingCase: boolean
+  readonly caseSaving: boolean
+  readonly showAdd: boolean
+  readonly addMenuDisabled?: boolean
+  readonly saving: boolean
+  readonly value: string
+  readonly meaning: string
+  readonly cardMeaning?: string
+  readonly headerRepresentations?: readonly CaseRepresentationDto[]
+  readonly answerReveal?: {
+    readonly value: string
+    readonly representations?: readonly CaseRepresentationDto[]
+  } | null
+  readonly rows: readonly AssocRow[]
+  readonly addText: ReactNode
+  readonly addUrl: ReactNode
+  readonly onValue: (v: string) => void
+  readonly onMeaning: (v: string) => void
+  readonly representationTypes?: readonly RepresentationTypeDto[]
+  readonly representationDrafts?: Record<number, string>
+  readonly onRepresentationDraft?: (typeId: number, text: string) => void
+  readonly onCancelCase: () => void
+  readonly onSaveCase: () => void
+  readonly onEditCase: () => void
+  readonly onDeleteCase: () => void
+  readonly onPick: (action: AssociationAddAction) => void
+  readonly sortable?: boolean
+  readonly onReorder?: (associationIds: readonly string[]) => void
+  readonly caseCategories?: ReactNode
+  readonly tab: CaseLibraryDetailTab
+  readonly onTab: (tab: CaseLibraryDetailTab) => void
+  readonly notesCount: number
+  readonly notesPanel?: ReactNode
+  readonly associationTextClassName?: string
+  /** Practice recall: meaning / original / representation switcher block. */
+  readonly practiceEntryContext?: ReactNode
+}
+
+export function CaseEntryLayout(props: CaseEntryLayoutProps) {
+  const libraryTitle = props.editingCase ? props.value : props.caseTitle
+
+  const answerRevealTrailing =
+    props.answerReveal !== null && props.answerReveal !== undefined ? (
+      <div className="border-t border-grid-line bg-accent-soft/50 px-5 py-4">
+        <CaseValueRevealLayout
+          value={props.answerReveal.value}
+          representations={props.answerReveal.representations}
+          variant="accent"
+        />
+      </div>
+    ) : null
+
+  return (
+    <section className={props.shellClassName}>
+      <div className="shrink-0 space-y-3 px-5 pb-3 pt-5">
+        {props.toolbarVariant === "library" ? (
+          <ToolbarLayout
+            variant="library"
+            caseTitle={libraryTitle ?? "—"}
+            onFront
+            editingCase={props.editingCase}
+            caseSaving={props.caseSaving}
+            onCancelCase={props.onCancelCase}
+            onSaveCase={props.onSaveCase}
+            onEditCase={props.onEditCase}
+            onDeleteCase={props.onDeleteCase}
+          />
+        ) : (
+          <ToolbarLayout
+            onFront={props.onFront ?? true}
+            editingCase={props.editingCase}
+            caseSaving={props.caseSaving}
+            onCancelCase={props.onCancelCase}
+            onSaveCase={props.onSaveCase}
+            onEditCase={props.onEditCase}
+            onDeleteCase={props.onDeleteCase}
+          />
+        )}
+      </div>
+
+      <div className="shrink-0 border-b border-grid-line px-5 pb-3">
+        <CaseLibraryDetailTabBar tab={props.tab} onTab={props.onTab} notesCount={props.notesCount} />
+      </div>
+
+      {props.tab === "entry" ? (
+        <div className="shrink-0 space-y-3 border-b border-grid-line px-5 py-5">
+          {props.editingCase ? (
+            <CaseFieldsLayout
+              value={props.value}
+              meaning={props.meaning}
+              disabled={props.caseSaving}
+              onValue={props.onValue}
+              onMeaning={props.onMeaning}
+              representationTypes={props.representationTypes}
+              representationDrafts={props.representationDrafts}
+              onRepresentationDraft={props.onRepresentationDraft}
+            />
+          ) : props.toolbarVariant === "library" ? (
+            <>
+              <CaseValueRevealLayout representations={props.headerRepresentations} variant="inline" />
+              {props.cardMeaning ? (
+                <p className="rounded-xl border border-grid-line bg-tile px-4 py-3 text-sm leading-relaxed text-foreground/90">
+                  {props.cardMeaning}
+                </p>
+              ) : null}
+            </>
+          ) : props.practiceEntryContext ? (
+            props.practiceEntryContext
+          ) : null}
+          {props.caseCategories ? (
+            <div className="relative z-20 overflow-visible">{props.caseCategories}</div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {props.tab === "entry" ? (
+        <CaseEntryAssociationsRegion
+          rows={props.rows}
+          showAdd={props.showAdd}
+          addMenuDisabled={props.addMenuDisabled}
+          saving={props.saving}
+          addText={props.addText}
+          addUrl={props.addUrl}
+          onPick={props.onPick}
+          sortable={props.sortable}
+          onReorder={props.onReorder}
+          associationTextClassName={props.associationTextClassName}
+          trailing={answerRevealTrailing}
+        />
+      ) : (
+        <div className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-5 py-5">{props.notesPanel}</div>
+      )}
+    </section>
+  )
+}

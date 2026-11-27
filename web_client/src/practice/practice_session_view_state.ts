@@ -20,6 +20,8 @@ export type PracticeSessionReadyViewState = {
   readonly revealedHiddenAssociationIds: readonly string[]
   readonly passedCount: number
   readonly totalCases: number
+  /** Set after typing Check; cleared on next card. */
+  readonly typingCheckCorrect: boolean | null
 } & PracticePackViewState
 
 export type PracticeSessionViewState =
@@ -66,6 +68,7 @@ export function createPracticeSessionViewStateReady(
   revealedHiddenAssociationIds: readonly string[] = [],
   passedCount = 0,
   totalCases?: number,
+  typingCheckCorrect: boolean | null = null,
   pack?: Partial<PracticePackViewState>,
 ): PracticeSessionReadyViewState {
   const defaultQueue = cards.map((card) => card.id)
@@ -84,6 +87,7 @@ export function createPracticeSessionViewStateReady(
     revealedHiddenAssociationIds,
     passedCount,
     totalCases: totalCases ?? cards.length,
+    typingCheckCorrect,
     playQueue,
     playQueueIndex,
     packRound: pack?.packRound ?? 1,
@@ -101,6 +105,24 @@ export function createPracticeSessionViewStateReadyRevealed(
     ready.revealedHiddenAssociationIds,
     ready.passedCount,
     ready.totalCases,
+    ready.typingCheckCorrect,
+    inheritPack(ready),
+  )
+}
+
+export function createPracticeSessionViewStateWithTypingFeedback(
+  ready: PracticeSessionReadyViewState,
+  correct: boolean,
+): PracticeSessionReadyViewState {
+  return createPracticeSessionViewStateReady(
+    ready.cards,
+    ready.cardIndex,
+    "back",
+    ready.sessionAssociations,
+    ready.revealedHiddenAssociationIds,
+    ready.passedCount,
+    ready.totalCases,
+    correct,
     inheritPack(ready),
   )
 }
@@ -123,6 +145,7 @@ export function createPracticeSessionViewStateAfterPackAdvance(
     [],
     ready.passedCount + 1,
     ready.totalCases,
+    null,
     {
       playQueue: nextQueue,
       playQueueIndex: nextQueueIndex,
@@ -143,6 +166,7 @@ export function createPracticeSessionViewStateWithAssociation(
     ready.revealedHiddenAssociationIds,
     ready.passedCount,
     ready.totalCases,
+    ready.typingCheckCorrect,
     inheritPack(ready),
   )
 }
@@ -163,6 +187,7 @@ export function createPracticeSessionViewStateWithReplacedCard(
     ready.revealedHiddenAssociationIds,
     ready.passedCount,
     ready.totalCases,
+    ready.typingCheckCorrect,
     inheritPack(ready),
   )
 }
@@ -174,7 +199,7 @@ export function createPracticeSessionViewStateAfterVocabularyReload(
   pack: PracticePackViewState,
 ): PracticeSessionViewState {
   if (cards.length === 0) {
-    return createPracticeSessionViewStateReady([], 0, "front", [], [], ready.passedCount, 0, {
+    return createPracticeSessionViewStateReady([], 0, "front", [], [], ready.passedCount, 0, null, {
       playQueue: [],
       playQueueIndex: 0,
       packRound: 1,
@@ -195,6 +220,7 @@ export function createPracticeSessionViewStateAfterVocabularyReload(
     ready.revealedHiddenAssociationIds,
     ready.passedCount,
     totalCases,
+    ready.phase === "front" ? null : ready.typingCheckCorrect,
     {
       playQueue: pack.playQueue,
       playQueueIndex,
@@ -219,6 +245,7 @@ export function createPracticeSessionViewStateWithToggledRevealedHidden(
     revealed,
     ready.passedCount,
     ready.totalCases,
+    ready.typingCheckCorrect,
     inheritPack(ready),
   )
 }
@@ -235,6 +262,7 @@ export function createPracticeSessionViewStateWithoutSessionAssociation(
     ready.revealedHiddenAssociationIds.filter((id) => id !== associationId),
     ready.passedCount,
     ready.totalCases,
+    ready.typingCheckCorrect,
     inheritPack(ready),
   )
 }
@@ -252,6 +280,7 @@ export function createPracticeSessionViewStateWithSessionAssociationPatched(
     ready.revealedHiddenAssociationIds,
     ready.passedCount,
     ready.totalCases,
+    ready.typingCheckCorrect,
     inheritPack(ready),
   )
 }

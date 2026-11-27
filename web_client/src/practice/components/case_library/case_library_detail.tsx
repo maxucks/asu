@@ -1,7 +1,10 @@
 import { assocLibraryFlags } from "@/practice/assoc_flags"
 import type { AssocRow } from "@/practice/components/assoc/list_layout"
-import { AssocTextFormLayout } from "@/practice/components/assoc/text_form_layout"
-import { AssocUrlFormLayout } from "@/practice/components/assoc/url_form_layout"
+import {
+  associationAddImageUrlView,
+  associationAddTextView,
+  associationEditViews,
+} from "@/practice/components/assoc/assoc_row_views"
 import { CaseCategoryField } from "@/practice/components/category/case_category_field"
 import type { CaseLibraryDetailTab } from "@/practice/components/case_library/case_library_detail_tab_bar"
 import { CaseLibraryDetailLayout } from "@/practice/components/case_library/case_library_detail_layout"
@@ -105,51 +108,33 @@ export function CaseLibraryDetail({
       onUnhide: () => void detail.setAssociationHidden(association.id, false),
       onDelete: () => ui.setPendingAssocDelete({ id: association.id, label: associationKindLabel(association.kind) }),
       onReveal: () => detail.toggleRevealHiddenAssociation(association.id),
-      textEdit: (
-        <AssocTextFormLayout
-          intent="edit"
-          initialValue={association.contentRef}
-          initialTileColor={association.tileColor}
-          saving={detail.savingAssociation === "text"}
-          onCancel={() => ui.setEditor(null)}
-          onSave={(payload) =>
-            void ui.saveEditor(() =>
-              detail.updateTextAssociation(association.id, payload.text, payload.tileColor),
-            )
-          }
-        />
-      ),
-      urlEdit: (
-        <AssocUrlFormLayout
-          intent="edit"
-          initialValue={association.contentRef}
-          saving={detail.savingAssociation === "image_url"}
-          onCancel={() => ui.setEditor(null)}
-          onSave={(url) => void ui.saveEditor(() => detail.updateImageAssociationFromUrl(association.id, url))}
-        />
-      ),
+      ...associationEditViews(association, {
+        textSaving: detail.savingAssociation === "text",
+        imageUrlSaving: detail.savingAssociation === "image_url",
+        onCancelEdit: () => ui.setEditor(null),
+        onSaveTextEdit: (associationId, payload) =>
+          void ui.saveEditor(() =>
+            detail.updateTextAssociation(associationId, payload.text, payload.tileColor),
+          ),
+        onSaveImageUrlEdit: (associationId, url) =>
+          void ui.saveEditor(() => detail.updateImageAssociationFromUrl(associationId, url)),
+      }),
     }
   })
 
-  const addText =
-    ui.editor?.intent === "add" && ui.editor.mode === "text" ? (
-      <AssocTextFormLayout
-        saving={detail.savingAssociation === "text"}
-        onCancel={() => ui.setEditor(null)}
-        onSave={(payload) =>
-          void ui.saveEditor(() => detail.addTextAssociation(payload.text, payload.tileColor))
-        }
-      />
-    ) : null
+  const addHandlers = {
+    textSaving: detail.savingAssociation === "text",
+    imageUrlSaving: detail.savingAssociation === "image_url",
+    onCancelAdd: () => ui.setEditor(null),
+    onSaveAddText: (payload: { readonly text: string; readonly tileColor: string | null }) =>
+      void ui.saveEditor(() => detail.addTextAssociation(payload.text, payload.tileColor)),
+    onSaveAddImageUrl: (url: string) => void ui.saveEditor(() => detail.addImageAssociationFromUrl(url)),
+  }
+
+  const addText = ui.editor?.intent === "add" && ui.editor.mode === "text" ? associationAddTextView(addHandlers) : null
 
   const addUrl =
-    ui.editor?.intent === "add" && ui.editor.mode === "image_url" ? (
-      <AssocUrlFormLayout
-        saving={detail.savingAssociation === "image_url"}
-        onCancel={() => ui.setEditor(null)}
-        onSave={(url) => void ui.saveEditor(() => detail.addImageAssociationFromUrl(url))}
-      />
-    ) : null
+    ui.editor?.intent === "add" && ui.editor.mode === "image_url" ? associationAddImageUrlView(addHandlers) : null
 
   const notesPanel =
     !ui.editingCase ? (

@@ -1,5 +1,9 @@
 "use client"
 
+import {
+  filterBySubstringSearch,
+  findByExactSearchName,
+} from "@/core/utils/search_query"
 import { categoryChipClassName } from "@/practice/components/category/category_chip"
 import type { CategoryDto } from "@/practice/practice_repository"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -26,16 +30,15 @@ export function CategoryCombobox({
     [categories, selectedIds],
   )
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (q.length === 0) return categories
-    return categories.filter((item) => item.name.toLowerCase().includes(q))
-  }, [categories, query])
+  const filtered = useMemo(
+    () => filterBySubstringSearch(categories, query, (item) => [item.name]),
+    [categories, query],
+  )
 
-  const exactMatch = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return categories.find((item) => item.name.toLowerCase() === q)
-  }, [categories, query])
+  const exactMatch = useMemo(
+    () => findByExactSearchName(categories, query, (item) => item.name),
+    [categories, query],
+  )
 
   useEffect(() => {
     if (!open) return

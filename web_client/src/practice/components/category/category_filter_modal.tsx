@@ -1,7 +1,9 @@
 "use client"
 
+import { SearchField } from "@/core/components/ui_kit/search_field"
+import { filterBySubstringSearch } from "@/core/utils/search_query"
 import type { CategoryDto } from "@/practice/practice_repository"
-import { useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 export function CategoryFilterModal({
   open,
@@ -22,12 +24,23 @@ export function CategoryFilterModal({
   readonly onSelect: (categoryId: string) => void
   readonly onClear: () => void
 }) {
+  const [query, setQuery] = useState("")
+
   useEffect(() => {
     if (!open) return
     const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose()
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [onClose, open])
+
+  useEffect(() => {
+    if (!open) setQuery("")
+  }, [open])
+
+  const filteredCategories = useMemo(
+    () => filterBySubstringSearch(categories, query, (category) => [category.name]),
+    [categories, query],
+  )
 
   if (!open) return null
 
@@ -42,6 +55,12 @@ export function CategoryFilterModal({
         <div className="border-b border-grid-line px-5 py-4">
           <h2 className="text-lg font-semibold text-foreground">Practice category</h2>
           <p className="mt-1 text-sm text-muted">Only cards in the selected category are shown.</p>
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            placeholder="Search categories…"
+            className="mt-3"
+          />
         </div>
         <ul className="scrollbar-hidden flex-1 overflow-y-auto divide-y divide-grid-line">
           {loading ? (
@@ -63,7 +82,10 @@ export function CategoryFilterModal({
                   <span className="tabular-nums text-muted">{totalInLanguage}</span>
                 </button>
               </li>
-              {categories.map((category) => (
+              {filteredCategories.length === 0 ? (
+                <li className="px-5 py-6 text-sm text-muted">No categories match your search.</li>
+              ) : null}
+              {filteredCategories.map((category) => (
                 <li key={category.id}>
                   <button
                     type="button"

@@ -3,6 +3,7 @@
 import { HttpCaseDataSource } from "@/core/data_sources/http_case_data_source";
 import { HttpLanguageDataSource } from "@/core/data_sources/http_language_data_source";
 import { SessionScreen } from "@/practice/components/session/session_screen";
+import { HotkeyHintsProvider } from "@/core/hotkeys/hotkey_hints_context";
 import { PracticeContextProvider } from "@/practice/context/practice_context";
 import type { PracticeContextValue } from "@/practice/practice_context_value";
 import { HttpCategoryDataSource } from "@/core/data_sources/http_category_data_source";
@@ -62,7 +63,9 @@ export function PracticeHome() {
 
   return (
     <PracticeContextProvider value={value}>
-      <SessionScreen />
+      <HotkeyHintsProvider>
+        <SessionScreen />
+      </HotkeyHintsProvider>
     </PracticeContextProvider>
   );
 }

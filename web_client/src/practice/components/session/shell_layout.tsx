@@ -23,6 +23,8 @@ type ShellLayoutProps = CardLayoutProps & {
   readonly footerDisabled?: boolean
   /** Replaces the practice card when loading or deck is empty. */
   readonly main?: ReactNode
+  /** When set, replaces the default recall footer (Show answer / grades). */
+  readonly answerFooter?: ReactNode
 }
 
 export function ShellLayout(props: ShellLayoutProps) {
@@ -44,6 +46,7 @@ export function ShellLayout(props: ShellLayoutProps) {
     sessionBanner,
     footerDisabled,
     main,
+    answerFooter,
     ...card
   } = props
 
@@ -62,13 +65,15 @@ export function ShellLayout(props: ShellLayoutProps) {
         onOpenLanguages={onOpenLanguages}
       />
       {main ?? <CardLayout {...card} caseCategories={caseCategories} />}
-      <FooterLayout
-        onFront={card.onFront}
-        grading={grading}
-        disabled={footerDisabled}
-        onReveal={onReveal}
-        onGrade={onGrade}
-      />
+      {answerFooter ?? (
+        <FooterLayout
+          onFront={card.onFront}
+          grading={grading}
+          disabled={footerDisabled}
+          onReveal={onReveal}
+          onGrade={onGrade}
+        />
+      )}
       {overlays}
     </main>
   )

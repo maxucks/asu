@@ -1,4 +1,5 @@
 import { TextArea, TextField } from "@/core/components/atoms/text_field"
+import { caseEntryMeaningFieldLabel, caseEntryValueFieldLabel } from "@/practice/practice_case_entry_fields"
 import { formatRepresentationTypeLabel } from "@/practice/practice_representation"
 import type { RepresentationTypeDto } from "@/core/data_sources/http_representation_type_data_source"
 
@@ -33,7 +34,7 @@ export function CaseFieldsLayout({
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-grid-line bg-tile p-3">
       <label className="flex flex-col gap-1 text-xs text-muted">
-        Value
+        {caseEntryValueFieldLabel}
         <TextField value={value} disabled={disabled} onChange={(e) => onValue(e.target.value)} />
       </label>
       {representationTypes.map((type) => (
@@ -47,7 +48,7 @@ export function CaseFieldsLayout({
         </label>
       ))}
       <label className="flex flex-col gap-1 text-xs text-muted">
-        Description
+        {caseEntryMeaningFieldLabel}
         <TextArea value={meaning} disabled={disabled} rows={3} onChange={(e) => onMeaning(e.target.value)} />
       </label>
     </div>

@@ -1,5 +1,10 @@
 "use client"
 
+import {
+  canCreateNewFromSearchQuery,
+  filterBySubstringSearch,
+  findByExactSearchName,
+} from "@/core/utils/search_query"
 import { CategoryChipRow } from "@/practice/components/category/category_chip_row"
 import { CategorySuggestionList } from "@/practice/components/category/category_suggestion_list"
 import { IconPlus } from "@/practice/components/session/icon_button"
@@ -38,22 +43,21 @@ export function CaseCategoryField({
     [assignedIds, categories],
   )
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (q.length === 0) return pickable
-    return pickable.filter((item) => item.name.toLowerCase().includes(q))
-  }, [pickable, query])
+  const filtered = useMemo(
+    () => filterBySubstringSearch(pickable, query, (item) => [item.name]),
+    [pickable, query],
+  )
 
-  const exactMatch = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (q.length === 0) return undefined
-    return categories.find((item) => item.name.toLowerCase() === q)
-  }, [categories, query])
+  const exactMatch = useMemo(
+    () => findByExactSearchName(categories, query, (item) => item.name),
+    [categories, query],
+  )
 
   const queryTrim = query.trim()
-  const canCreateFromQuery =
-    queryTrim.length > 0 &&
-    !categories.some((item) => item.name.toLowerCase() === queryTrim.toLowerCase())
+  const canCreateFromQuery = canCreateNewFromSearchQuery(
+    query,
+    categories.map((item) => item.name),
+  )
 
   const closePicker = useCallback(() => {
     setListOpen(false)
@@ -152,8 +156,7 @@ export function CaseCategoryField({
             if (e.key === "Escape") closePicker()
             if (e.key === "Enter") {
               e.preventDefault()
-              const q = query.trim().toLowerCase()
-              const exactPick = pickable.find((item) => item.name.toLowerCase() === q)
+              const exactPick = findByExactSearchName(pickable, query, (item) => item.name)
               if (exactPick) selectCategory(exactPick)
               else if (canCreateFromQuery) void createAndSelect()
               else if (filtered[0]) selectCategory(filtered[0])
